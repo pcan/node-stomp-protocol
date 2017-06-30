@@ -40,7 +40,7 @@ enum StompFrameStatus {
     ERROR = 3
 }
 
-class StompFrameLayer {
+export class StompFrameLayer {
 
     public readonly emitter = new StompFrameEventEmitter();
 

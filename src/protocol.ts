@@ -6,7 +6,7 @@ function isPresent(value: any) {
 
 function requireHeader(headerName: string) {
     return (frame: StompFrame) => {
-        if(isPresent(frame.headers[headerName])) {
+        if (isPresent(frame.headers[headerName])) {
             return validationOk;
         }
         return {
@@ -65,9 +65,9 @@ function headerMatchesRegex(headerName: string, regex: RegExp) {
 }
 
 
-const StompProtocol_v_1_0: StompProtocol = {
+export const StompProtocol_v_1_0: StompProtocol = {
     version: '1.0',
-    clientCommands: {
+    serverCommands: {
         CONNECT: [],
         SEND: [requireHeader('destination')],
         SUBSCRIBE: [requireHeader('destination')],
@@ -78,7 +78,8 @@ const StompProtocol_v_1_0: StompProtocol = {
         ACK: [requireHeader('message-id')],
         DISCONNECT: []
     },
-    serverCommands: {
+    clientCommands: {
+        CONNECTED: [requireHeader('session')],
         SEND: [requireAllHeaders('destination', 'message-id')],
         RECEIPT: [requireHeader('receipt-id')],
         ERROR: [requireHeader('message')]
