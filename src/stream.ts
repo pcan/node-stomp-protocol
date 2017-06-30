@@ -20,21 +20,23 @@ export class StompStreamEventEmitter {
 }
 
 
-export function openStompStream(socket: Socket, emitter: StompStreamEventEmitter): StompStreamLayer {
+export function openStompStream(socket: Socket): StompStreamLayer {
 
-    return new StompSocketStreamLayer(socket, emitter);
+    return new StompSocketStreamLayer(socket);
 
 }
 
 
 class StompSocketStreamLayer implements StompStreamLayer {
 
-    constructor(private readonly socket: Socket, public emitter: StompStreamEventEmitter) {
+    public emitter = new StompStreamEventEmitter();
+
+    constructor(private readonly socket: Socket) {
         this.socket.on('data', (data) => this.onSocketData(data));
         this.socket.on('end', () => this.onSocketEnd());
     }
 
-    private onSocketData(data: string) {
+    private onSocketData(data: Buffer) {
         if (this.emitter) {
             this.emitter.dataEmitter.emit(data);
         }

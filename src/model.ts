@@ -25,7 +25,7 @@ export class StompFrame {
     }
 }
 
-export class StompEventEmitter<E extends string> {
+export class StompEventEmitter {
 
     constructor(private readonly emitter: EventEmitter, private readonly event: string) { }
 

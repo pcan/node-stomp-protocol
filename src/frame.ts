@@ -1,19 +1,8 @@
 import { StompFrame, StompProtocol, StompCommands, StompEventEmitter, validationOk } from "./model";
+import { StompProtocol_v_1_0, StompProtocol_v_1_1, StompProtocol_v_1_2 } from "./protocol";
 import { StompStreamLayer } from "./stream";
 import { EventEmitter } from "events";
 
-
-/*
-var server = net.createServer((socket) => {
-    socket.on('connect', () => {
-        //console.log('Received Unsecured Connection');
-        //new StompStreamHandler(stream, queueManager);
-        var stream = new StompStream(socket);
-        var handler = new StompProtocolHandler(stream);
-
-    });
-});
-*/
 
 export class StompFrameEventEmitter {
 
@@ -31,12 +20,7 @@ export class StompFrameError extends Error {
         super(message);
     }
 
-    public toString() {
-        return JSON.stringify(this);
-    }
-
 }
-
 
 enum StompFrameStatus {
     COMMAND = 0,
@@ -45,7 +29,7 @@ enum StompFrameStatus {
     ERROR = 3
 }
 
-export class StompFrameLayer {
+class StompFrameLayer {
 
     public readonly emitter = new StompFrameEventEmitter();
 
@@ -54,8 +38,8 @@ export class StompFrameLayer {
     private buffer = '';
     private status: StompFrameStatus = StompFrameStatus.COMMAND;
 
-    constructor(private readonly stream: StompStreamLayer, private readonly validator: StompFrameValidator) {
-        stream.emitter.dataEmitter.onEvent((data: string) => this.onData(data));
+    constructor(private readonly stream: StompStreamLayer, protected validator: StompFrameValidator) {
+        stream.emitter.dataEmitter.onEvent((data: Buffer) => this.onData(data));
         stream.emitter.endEmitter.onEvent(() => this.onEnd());
     }
 
@@ -80,8 +64,8 @@ export class StompFrameLayer {
     }
 
 
-    private onData(data: string) {
-        this.buffer += data;
+    private onData(data: Buffer) {
+        this.buffer += data.toString();
         do {
             if (this.status === StompFrameStatus.COMMAND) {
                 this.parseCommand();
@@ -134,12 +118,17 @@ export class StompFrameLayer {
                 }
                 value = kv.slice(1).join(':');
                 this.frame.setHeader(kv[0], value);
-                if (kv[0].toLowerCase() === 'content-length') {
-                    this.contentLength = parseInt(value);
-                }
+                this.handleHeader(kv[0].toLowerCase(), value);
             }
         }
     }
+
+    protected handleHeader(headerName: string, headerValue: string) {
+        if (headerName === 'content-length') {
+            this.contentLength = parseInt(headerValue);
+        }
+    }
+
 
     private parseBody() { //TODO: security check for length (watch appendToBody)
         var bufferBuffer = new Buffer(this.buffer);
@@ -238,22 +227,18 @@ export class StompFrameLayer {
 
 }
 
-
-export enum StompSide {
+/*
+enum StompSide {
     SERVER,
     CLIENT
 }
+*/
 
+class StompFrameValidator {
 
-export class StompFrameValidator {
-
-    private readonly allowedCommands: StompCommands;
     private readonly allowedCommandNames: string[];
 
-    constructor(private readonly side: StompSide, private protocol: StompProtocol) {
-        this.allowedCommands = this.side === StompSide.CLIENT ?
-            this.protocol.clientCommands :
-            this.protocol.serverCommands;
+    constructor(private allowedCommands: StompCommands) {
         this.allowedCommandNames = Object.keys(this.allowedCommands);
     }
 
@@ -271,6 +256,33 @@ export class StompFrameValidator {
             }
         }
         return validationOk;
+    }
+
+}
+
+export class StompClientFrameLayer extends StompFrameLayer {
+
+    constructor(stream: StompStreamLayer) {
+        super(stream, new StompFrameValidator(StompProtocol_v_1_2.clientCommands));
+    }
+
+}
+
+export class StompServerFrameLayer extends StompFrameLayer {
+
+    constructor(stream: StompStreamLayer) {
+        super(stream, new StompFrameValidator(StompProtocol_v_1_2.serverCommands));
+    }
+
+    protected handleHeader(headerName: string, headerValue: string) {
+        super.handleHeader(headerName, headerValue);
+        if (headerName === 'accept-version') {
+            if (headerValue.indexOf('1.2') >= 0) {
+                this.validator = new StompFrameValidator(StompProtocol_v_1_2.serverCommands);
+            } else if (headerValue.indexOf('1.1') >= 0) {
+                this.validator = new StompFrameValidator(StompProtocol_v_1_1.serverCommands);
+            }
+        }
     }
 
 }

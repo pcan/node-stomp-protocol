@@ -1,16 +1,13 @@
 import { Socket, createConnection } from "net";
 import { StompFrame } from "./model";
 import { openStompStream, StompStreamEventEmitter } from "./stream";
-import { StompFrameLayer, StompSide, StompFrameValidator, StompFrameEventEmitter } from "./frame";
+import { StompClientFrameLayer, StompFrameEventEmitter } from "./frame";
 import { StompProtocol_v_1_0 } from "./protocol";
 
 const socket = createConnection(61613, '127.0.0.1');
 
-const streamEmitter = new StompStreamEventEmitter();
-const streamLayer = openStompStream(socket, streamEmitter);
-
-const validator = new StompFrameValidator(StompSide.CLIENT, StompProtocol_v_1_0);
-const frameLayer = new StompFrameLayer(streamLayer, validator);
+const streamLayer = openStompStream(socket);
+const frameLayer = new StompClientFrameLayer(streamLayer);
 
 frameLayer.emitter.frameEmitter.onEvent((frame) => {
     console.log('Frame Event: ' + frame.toString());
@@ -35,3 +32,17 @@ socket.on('connect', () => {
     }));
 
 });
+
+
+
+/*
+var server = net.createServer((socket) => {
+    socket.on('connect', () => {
+        //console.log('Received Unsecured Connection');
+        //new StompStreamHandler(stream, queueManager);
+        var stream = new StompStream(socket);
+        var handler = new StompProtocolHandler(stream);
+
+    });
+});
+*/
