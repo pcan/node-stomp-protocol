@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "target": "ES5",
+        "sourceMap": true,
+        "outDir": "./dist",
+        "strict": true,
+        "typeRoots": ["node_modules/@types"]
+    },
+    "compileOnSave": true
+}
