@@ -30,6 +30,11 @@ export class StompFrameError extends Error {
     constructor(message?: string, public details?: string) {
         super(message);
     }
+
+    public toString() {
+        return JSON.stringify(this);
+    }
+
 }
 
 
@@ -253,7 +258,7 @@ export class StompFrameValidator {
     }
 
     public isValidCommand(command: string) {
-        return (command && (command.length < 20 || this.allowedCommandNames.indexOf(command) > -1));
+        return (command && command.length < 20 && this.allowedCommandNames.indexOf(command) > -1);
     }
 
     public validate(frame: StompFrame) {

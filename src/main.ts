@@ -13,11 +13,11 @@ const validator = new StompFrameValidator(StompSide.CLIENT, StompProtocol_v_1_0)
 const frameLayer = new StompFrameLayer(streamLayer, validator);
 
 frameLayer.emitter.frameEmitter.onEvent((frame) => {
-    console.log(frame);
+    console.log('Frame Event: ' + frame.toString());
 });
 
 frameLayer.emitter.errorEmitter.onEvent((error) => {
-    console.log(error);
+    console.log('Error Event: ' + error.toString());
 });
 
 frameLayer.emitter.endEmitter.onEvent(() => {
