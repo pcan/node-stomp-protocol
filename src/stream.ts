@@ -1,25 +1,36 @@
 import { StompFrame, StompEventEmitter } from "./model";
-
+import { EventEmitter } from "events";
 import { Socket } from "net";
 
 export interface StompStreamLayer {
 
-    emitter: StompEventEmitter<'streamData' | 'streamEnd'>;
-    send(data: Buffer): void;
+    emitter: StompStreamEventEmitter;
+    send(data: string): void;
     close(): void;
 
 }
 
+
+export class StompStreamEventEmitter {
+
+    private readonly emitter = new EventEmitter();
+    public readonly dataEmitter = new StompEventEmitter(this.emitter, 'data');
+    public readonly endEmitter = new StompEventEmitter(this.emitter, 'end');
+
+}
+
+
+
 class StompSocketStreamLayer implements StompStreamLayer {
 
-    constructor(private readonly socket: Socket, public emitter: StompEventEmitter<'streamData' | 'streamEnd'>) {
+    constructor(private readonly socket: Socket, public emitter: StompStreamEventEmitter) {
         this.socket.on('data', this.onSocketData);
         this.socket.on('end', this.onSocketEnd);
     }
 
     private onSocketData(data: string) {
         if (this.emitter) {
-            this.emitter.emitEvent('streamData', data);
+            this.emitter.dataEmitter.emit(data);
         }
         //frameEmitter.handleData(data);
     }
@@ -27,7 +38,7 @@ class StompSocketStreamLayer implements StompStreamLayer {
     private onSocketEnd() {
         try {
             if (this.emitter) {
-                this.emitter.emitEvent('streamEnd');
+                this.emitter.endEmitter.emit();
             }
             // subscriptions.map(function(queue) {
             //   queueManager.unsubscribe(queue, sessionId);
@@ -37,7 +48,7 @@ class StompSocketStreamLayer implements StompStreamLayer {
         }
     }
 
-    public send(data: Buffer) {
+    public send(data: string) {
         this.socket.write(data);
     }
 

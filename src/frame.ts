@@ -1,5 +1,6 @@
 import { StompFrame, StompProtocol, StompCommands, StompEventEmitter, validationOk } from "./model";
 import { StompStreamLayer } from "./stream";
+import { EventEmitter } from "events";
 
 
 /*
@@ -13,6 +14,15 @@ var server = net.createServer((socket) => {
     });
 });
 */
+
+export class StompFrameEventEmitter {
+
+    private readonly emitter = new EventEmitter();
+    public readonly frameEmitter = new StompEventEmitter(this.emitter, 'frame');
+    public readonly errorEmitter = new StompEventEmitter(this.emitter, 'error');
+    public readonly endEmitter = new StompEventEmitter(this.emitter, 'end');
+
+}
 
 
 export class StompFrameError extends Error {
@@ -32,18 +42,40 @@ enum StompFrameStatus {
 
 class StompFrameLayer {
 
-    public readonly emitter: StompEventEmitter<'frame' | 'error'> = new StompEventEmitter();
+    public readonly emitter = new StompFrameEventEmitter();
+
+    private frame: StompFrame;
     private contentLength: number;
     private buffer = '';
-    private frame: StompFrame;
     private status: StompFrameStatus = StompFrameStatus.COMMAND;
 
-    constructor(private readonly stream: StompStreamLayer,  private readonly validator: StompFrameValidator) {
-        stream.emitter.onEvent('streamData', (data: string) => this.onData(data));
-        stream.emitter.onEvent('streamEnd', () => this.onEnd());
+    constructor(private readonly stream: StompStreamLayer, private readonly validator: StompFrameValidator) {
+        stream.emitter.dataEmitter.onEvent((data: string) => this.onData(data));
+        stream.emitter.endEmitter.onEvent(() => this.onEnd());
     }
 
-    public onData(data: string) {
+    public send(frame: StompFrame) {
+        var data = frame.command + '\n';
+        for (var key in frame.headers) {
+            data += key + ':' + frame.headers[key] + '\n';
+        }
+        if (frame.body.length > 0) {
+            if (!frame.headers.hasOwnProperty('suppress-content-length')) {
+                data += 'content-length:' + Buffer.byteLength(frame.body) + '\n';
+            }
+        }
+        data += '\n';
+        if (frame.body.length > 0) {
+            data += frame.body;
+        }
+        data += '\0';
+        if (frame) {
+            this.stream.send(data);
+        }
+    }
+
+
+    private onData(data: string) {
         this.buffer += data;
         do {
             if (this.status === StompFrameStatus.COMMAND) {
@@ -62,8 +94,8 @@ class StompFrameLayer {
         } while (this.status === StompFrameStatus.COMMAND && this.hasLine());
     }
 
-    public onEnd() {
-        //TODO
+    private onEnd() {
+        this.emitter.endEmitter.emit();
     }
 
     private parseCommand() {
@@ -76,7 +108,7 @@ class StompFrameLayer {
                 }
                 this.frame = new StompFrame(commandLine);
                 this.contentLength = -1;
-                this.incrementState();
+                this.incrementStatus();
                 break;
             }
         }
@@ -87,7 +119,7 @@ class StompFrameLayer {
         while (this.hasLine()) {
             var headerLine = this.popLine();
             if (headerLine === '') {
-                this.incrementState();
+                this.incrementStatus();
                 break;
             } else {
                 var kv = headerLine.split(':');
@@ -135,46 +167,63 @@ class StompFrameLayer {
 
             if (validation.isValid) {
                 // Emit the frame and reset
-                this.emitter.emitEvent('frame', this.frame); // Event emit to catch any frame emission
+                this.emitter.frameEmitter.emit(this.frame); // Event emit to catch any frame emission
                 //this.emit(this.frame.command, this.frame);  // Specific frame emission
             } else {
-                this.emitter.emitEvent('error', new StompFrameError(validation.message, validation.details));
+                this.emitter.errorEmitter.emit(new StompFrameError(validation.message, validation.details));
             }
 
-            //this.frame = new StompFrame();
-            this.incrementState();
+            this.incrementStatus();
             this.buffer = this.buffer.substr(index + 1);
         }
     }
 
+    /**
+     * Parses the error
+     */
     private parseError() {
         var index = this.buffer.indexOf('\0');
         if (index > -1) {
             this.buffer = this.buffer.substr(index + 1);
-            this.incrementState();
+            this.incrementStatus();
         } else {
-            this.buffer = "";
+            this.buffer = '';
         }
     }
 
+    /**
+     * Pops a new line from the stream
+     * @return {string} the new line available
+     */
     private popLine() {
-        //TODO: security check for newline flooding
+        //TODO: security check for newline char flooding
         var index = this.buffer.indexOf('\n');
         var line = this.buffer.slice(0, index);
         this.buffer = this.buffer.substr(index + 1);
         return line;
     }
 
+    /**
+     * Check if there is a new line in the current stream chunk
+     * @return {boolean}
+     */
     private hasLine() {
         return (this.buffer.indexOf('\n') > -1);
     }
 
+    /**
+     * Emits a new StompFrameError and sets the current status to ERROR
+     * @param  {StompFrameError} error
+     */
     private error(error: StompFrameError) {
-        this.emitter.emitEvent('error', error);
+        this.emitter.errorEmitter.emit(error);
         this.status = StompFrameStatus.ERROR;
     }
 
-    private incrementState() {
+    /**
+     * Set the current status to the next available, otherwise it returns in COMMAND status.
+     */
+    private incrementStatus() {
         if (this.status === StompFrameStatus.BODY || this.status === StompFrameStatus.ERROR) {
             this.status = StompFrameStatus.COMMAND;
         } else {
