@@ -25,16 +25,16 @@ export class StompFrame {
     }
 }
 
-export class StompEventEmitter {
+export class StompEventEmitter<E extends string> {
 
-    constructor(private readonly emitter: EventEmitter, private readonly event: string) { }
+    private readonly emitter = new EventEmitter();
 
-    public onEvent(callback: (...args: any[]) => void) {
-        this.emitter.on(this.event, callback);
+    public on(event: E, callback: (...args: any[]) => void) {
+        this.emitter.on(event, callback);
     }
 
-    public emit(...args: any[]) {
-        this.emitter.emit(this.event, ...args);
+    public emit(event: E, ...args: any[]) {
+        this.emitter.emit(event, ...args);
     }
 
 }

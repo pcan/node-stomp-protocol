@@ -3,17 +3,6 @@ import { StompProtocol_v_1_0, StompProtocol_v_1_1, StompProtocol_v_1_2 } from ".
 import { StompStreamLayer } from "./stream";
 import { EventEmitter } from "events";
 
-
-export class StompFrameEventEmitter {
-
-    private readonly emitter = new EventEmitter();
-    public readonly frameEmitter = new StompEventEmitter(this.emitter, 'frame');
-    public readonly errorEmitter = new StompEventEmitter(this.emitter, 'error');
-    public readonly endEmitter = new StompEventEmitter(this.emitter, 'end');
-
-}
-
-
 export class StompFrameError extends Error {
 
     constructor(message?: string, public details?: string) {
@@ -29,18 +18,20 @@ enum StompFrameStatus {
     ERROR = 3
 }
 
-class StompFrameLayer {
+type StompFrameEvent = 'frame' | 'error' | 'end';
 
-    public readonly emitter = new StompFrameEventEmitter();
+export class StompFrameLayer {
+
+    public readonly emitter = new StompEventEmitter<StompFrameEvent>();
 
     private frame: StompFrame;
     private contentLength: number;
     private buffer = '';
     private status: StompFrameStatus = StompFrameStatus.COMMAND;
 
-    constructor(private readonly stream: StompStreamLayer, protected validator: StompFrameValidator) {
-        stream.emitter.dataEmitter.onEvent((data: Buffer) => this.onData(data));
-        stream.emitter.endEmitter.onEvent(() => this.onEnd());
+    constructor(private readonly stream: StompStreamLayer) {
+        stream.emitter.on('data', (data: Buffer) => this.onData(data));
+        stream.emitter.on('end', () => this.onEnd());
     }
 
     public send(frame: StompFrame) {
@@ -63,6 +54,9 @@ class StompFrameLayer {
         }
     }
 
+    public close() {
+        this.stream.close();
+    }
 
     private onData(data: Buffer) {
         this.buffer += data.toString();
@@ -84,17 +78,13 @@ class StompFrameLayer {
     }
 
     private onEnd() {
-        this.emitter.endEmitter.emit();
+        this.emitter.emit('end');
     }
 
     private parseCommand() {
         while (this.hasLine()) {
             var commandLine = this.popLine();
             if (commandLine !== '') {
-                if (!this.validator.isValidCommand(commandLine)) {
-                    this.error(new StompFrameError('No such command', `Unrecognized Command '${commandLine}'`));
-                    break;
-                }
                 this.frame = new StompFrame(commandLine);
                 this.contentLength = -1;
                 this.incrementStatus();
@@ -105,7 +95,7 @@ class StompFrameLayer {
 
     private parseHeaders() {
         var value;
-        while (this.hasLine()) {
+        while (this.hasLine()) {  //TODO: security check for length 
             var headerLine = this.popLine();
             if (headerLine === '') {
                 this.incrementStatus();
@@ -118,17 +108,12 @@ class StompFrameLayer {
                 }
                 value = kv.slice(1).join(':');
                 this.frame.setHeader(kv[0], value);
-                this.handleHeader(kv[0].toLowerCase(), value);
+                if (kv[0] === 'content-length') {
+                    this.contentLength = parseInt(value);
+                }
             }
         }
     }
-
-    protected handleHeader(headerName: string, headerValue: string) {
-        if (headerName === 'content-length') {
-            this.contentLength = parseInt(headerValue);
-        }
-    }
-
 
     private parseBody() { //TODO: security check for length (watch appendToBody)
         var bufferBuffer = new Buffer(this.buffer);
@@ -157,15 +142,8 @@ class StompFrameLayer {
             // The end of the frame has been identified, finish creating it
             this.frame.appendToBody(this.buffer.slice(0, index));
 
-            var validation = this.validator.validate(this.frame);
-
-            if (validation.isValid) {
-                // Emit the frame and reset
-                this.emitter.frameEmitter.emit(this.frame); // Event emit to catch any frame emission
-                //this.emit(this.frame.command, this.frame);  // Specific frame emission
-            } else {
-                this.emitter.errorEmitter.emit(new StompFrameError(validation.message, validation.details));
-            }
+            // Emit the frame and reset
+            this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
 
             this.incrementStatus();
             this.buffer = this.buffer.substr(index + 1);
@@ -191,6 +169,7 @@ class StompFrameLayer {
      */
     private popLine() {
         //TODO: security check for newline char flooding
+        //TODO: we have to handle \r values?
         var index = this.buffer.indexOf('\n');
         var line = this.buffer.slice(0, index);
         this.buffer = this.buffer.substr(index + 1);
@@ -202,6 +181,7 @@ class StompFrameLayer {
      * @return {boolean}
      */
     private hasLine() {
+        //TODO: we have to handle \r values?
         return (this.buffer.indexOf('\n') > -1);
     }
 
@@ -210,7 +190,7 @@ class StompFrameLayer {
      * @param  {StompFrameError} error
      */
     private error(error: StompFrameError) {
-        this.emitter.errorEmitter.emit(error);
+        this.emitter.emit('error', error);
         this.status = StompFrameStatus.ERROR;
     }
 
@@ -222,66 +202,6 @@ class StompFrameLayer {
             this.status = StompFrameStatus.COMMAND;
         } else {
             this.status++;
-        }
-    }
-
-}
-
-/*
-enum StompSide {
-    SERVER,
-    CLIENT
-}
-*/
-
-class StompFrameValidator {
-
-    private readonly allowedCommandNames: string[];
-
-    constructor(private allowedCommands: StompCommands) {
-        this.allowedCommandNames = Object.keys(this.allowedCommands);
-    }
-
-    public isValidCommand(command: string) {
-        return (command && command.length < 20 && this.allowedCommandNames.indexOf(command) > -1);
-    }
-
-    public validate(frame: StompFrame) {
-        const validators = this.allowedCommands[frame.command];
-        var result;
-        for (var validator of validators) {
-            result = validator(frame);
-            if (!result.isValid) {
-                return result;
-            }
-        }
-        return validationOk;
-    }
-
-}
-
-export class StompClientFrameLayer extends StompFrameLayer {
-
-    constructor(stream: StompStreamLayer) {
-        super(stream, new StompFrameValidator(StompProtocol_v_1_2.clientCommands));
-    }
-
-}
-
-export class StompServerFrameLayer extends StompFrameLayer {
-
-    constructor(stream: StompStreamLayer) {
-        super(stream, new StompFrameValidator(StompProtocol_v_1_2.serverCommands));
-    }
-
-    protected handleHeader(headerName: string, headerValue: string) {
-        super.handleHeader(headerName, headerValue);
-        if (headerName === 'accept-version') {
-            if (headerValue.indexOf('1.2') >= 0) {
-                this.validator = new StompFrameValidator(StompProtocol_v_1_2.serverCommands);
-            } else if (headerValue.indexOf('1.1') >= 0) {
-                this.validator = new StompFrameValidator(StompProtocol_v_1_1.serverCommands);
-            }
         }
     }
 

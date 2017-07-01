@@ -1,23 +1,22 @@
 import { Socket, createConnection } from "net";
 import { StompFrame } from "./model";
-import { openStompStream, StompStreamEventEmitter } from "./stream";
-import { StompClientFrameLayer, StompFrameEventEmitter } from "./frame";
-import { StompProtocol_v_1_0 } from "./protocol";
+import { openStompStream } from "./stream";
+import { StompFrameLayer } from "./frame";
 
 const socket = createConnection(61613, '127.0.0.1');
 
 const streamLayer = openStompStream(socket);
-const frameLayer = new StompClientFrameLayer(streamLayer);
+const frameLayer = new StompFrameLayer(streamLayer);
 
-frameLayer.emitter.frameEmitter.onEvent((frame) => {
+frameLayer.emitter.on('frame', (frame) => {
     console.log('Frame Event: ' + frame.toString());
 });
 
-frameLayer.emitter.errorEmitter.onEvent((error) => {
+frameLayer.emitter.on('error', (error) => {
     console.log('Error Event: ' + error.toString());
 });
 
-frameLayer.emitter.endEmitter.onEvent(() => {
+frameLayer.emitter.on('end', () => {
     console.log("End event detected.");
 });
 
