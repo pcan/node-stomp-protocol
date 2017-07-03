@@ -1,15 +1,7 @@
-import { StompFrame, StompProtocol, StompCommands, StompEventEmitter, validationOk } from "./model";
-import { StompProtocol_v_1_0, StompProtocol_v_1_1, StompProtocol_v_1_2 } from "./protocol";
+import { StompFrame, StompEventEmitter, StompError } from "./model";
 import { StompStreamLayer } from "./stream";
 import { EventEmitter } from "events";
 
-export class StompFrameError extends Error {
-
-    constructor(message?: string, public details?: string) {
-        super(message);
-    }
-
-}
 
 enum StompFrameStatus {
     COMMAND = 0,
@@ -84,7 +76,7 @@ export class StompFrameLayer {
     private parseCommand() {
         while (this.hasLine()) {
             var commandLine = this.popLine();
-            if (commandLine !== '') {
+            if (commandLine !== '') {  //TODO: security check for length
                 this.frame = new StompFrame(commandLine);
                 this.contentLength = -1;
                 this.incrementStatus();
@@ -95,15 +87,15 @@ export class StompFrameLayer {
 
     private parseHeaders() {
         var value;
-        while (this.hasLine()) {  //TODO: security check for length 
+        while (this.hasLine()) {  //TODO: security check for length
             var headerLine = this.popLine();
-            if (headerLine === '') {
+            if (headerLine === '') { //TODO: optimization: check if command is valid
                 this.incrementStatus();
                 break;
             } else {
                 var kv = headerLine.split(':');
                 if (kv.length < 2) {
-                    this.error(new StompFrameError('Error parsing header', `No ':' in line '${headerLine}'`));
+                    this.error(new StompError('Error parsing header', `No ':' in line '${headerLine}'`));
                     break;
                 }
                 value = kv.slice(1).join(':');
@@ -189,7 +181,7 @@ export class StompFrameLayer {
      * Emits a new StompFrameError and sets the current status to ERROR
      * @param  {StompFrameError} error
      */
-    private error(error: StompFrameError) {
+    private error(error: StompError) {
         this.emitter.emit('error', error);
         this.status = StompFrameStatus.ERROR;
     }

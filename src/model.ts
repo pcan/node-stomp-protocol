@@ -2,6 +2,14 @@ import { EventEmitter } from "events";
 
 export type StompHeaders = { [key: string]: string | number };
 
+export class StompError extends Error {
+
+    constructor(message?: string, public details?: string) {
+        super(message);
+    }
+
+}
+
 export class StompFrame {
 
     public headers: StompHeaders;
@@ -39,18 +47,10 @@ export class StompEventEmitter<E extends string> {
 
 }
 
-type StompValidationResult = {
-    isValid: boolean,
-    message?: string,
-    details?: string
-};
-
-
-export const validationOk: StompValidationResult = { isValid: true };
-
+/*
 type StompValidator = ((frame: StompFrame) => StompValidationResult);
 
-export type StompCommands = {
+type StompCommands = {
     [commandName: string]: StompValidator[]
 };
 
@@ -59,3 +59,5 @@ export type StompProtocol = {
     serverCommands: StompCommands,
     clientCommands: StompCommands
 }
+
+*/

@@ -1,5 +1,13 @@
-import { StompFrame, validationOk } from './model';
+import { StompFrame } from './model';
 
+type StompValidationResult = {
+    isValid: boolean,
+    message?: string,
+    details?: string
+};
+
+
+const validationOk: StompValidationResult = { isValid: true };
 
 function isPresent(value: any) {
     return typeof value !== 'undefined' && value !== null;
