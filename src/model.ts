@@ -2,6 +2,10 @@ import { EventEmitter } from "events";
 
 export type StompHeaders = { [key: string]: string | number };
 
+export interface StompSessionData {
+    id:string;
+}
+
 export class StompError extends Error {
 
     constructor(message?: string, public details?: string) {
