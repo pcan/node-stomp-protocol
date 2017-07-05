@@ -21,7 +21,7 @@ function testServer(socket: Socket) {
         },
         async send(headers?: StompHeaders, body?: string): Promise<void> {
             console.log('Send!', body, headers);
-            sessionLayer.message({destination: 'commonQueue'}, 'This is the response message!');
+            sessionLayer.message({destination: 'commonQueue', 'message-id': '123456'}, 'This is the response message!');
         },
 
         async subscribe(headers?: StompHeaders): Promise<void> {

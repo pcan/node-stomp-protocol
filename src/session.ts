@@ -3,7 +3,7 @@ import { StompFrameLayer } from './frame';
 import {
     StompCommandListener, StompClientCommandListener, StompServerCommandListener,
     StompCommand, StompCommands, StompServerCommands, StompClientCommands,
-    StompProtocolHandler, StompProtocolHandlerV10
+    StompProtocolHandler, StompProtocolHandlerV10, StompProtocolHandlerV11, StompProtocolHandlerV12
 } from './protocol';
 import { StompValidator, StompValidationResult } from './validators';
 
@@ -89,16 +89,36 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     protected async handleFrame(command: StompCommand<StompClientCommandListener>, frame: StompFrame) {
+        const receipt = frame.command !== 'CONNECT' && frame.headers && frame.headers.receipt;
+        const acceptVersion = frame.command === 'CONNECT' && frame.headers && frame.headers['accept-version'];
         if (this.data.authenticated || frame.command === 'CONNECT') {
             try {
+                if (acceptVersion) {
+                    this.switchProtocol(acceptVersion);
+                }
                 await super.handleFrame(command, frame);
+                if (receipt) {
+                    await this.receipt({ 'receipt-id': receipt });
+                }
             } catch (error) {
                 if (error instanceof StompError) {
-                    await this.error({ message: error.message }, error.details);
+                    const headers: StompHeaders = { message: error.message };
+                    if (receipt) {
+                        headers['receipt-id'] = receipt;
+                    }
+                    await this.error(headers, error.details);
                 }
             }
         } else {
             await this.error({ message: 'You must first issue a CONNECT command' });
+        }
+    }
+
+    private switchProtocol(acceptVersion: string) {
+        if (acceptVersion.indexOf('1.2') >= 0) {
+            this.protocol = StompProtocolHandlerV12;
+        } else if (acceptVersion.indexOf('1.1') >= 0) {
+            this.protocol = StompProtocolHandlerV11;
         }
     }
 
