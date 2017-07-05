@@ -1,13 +1,13 @@
 import { Socket, createServer } from 'net';
 import { StompFrame, StompHeaders, StompError } from './model';
-import { openStompStream } from './stream';
+import { openSocketStream } from './stream';
 import { StompFrameLayer } from './frame';
 import { StompServerSessionLayer } from './session';
 
 
 function testServer(socket: Socket) {
 
-    const streamLayer = openStompStream(socket);
+    const streamLayer = openSocketStream(socket);
     const frameLayer = new StompFrameLayer(streamLayer);
     const listener = {
 
