@@ -1,0 +1,103 @@
+import { Socket, createServer } from 'net';
+import { StompFrame, StompHeaders, StompError } from './model';
+import { openStompStream } from './stream';
+import { StompFrameLayer } from './frame';
+import { StompServerSessionLayer } from './session';
+
+
+function testServer(socket: Socket) {
+
+    const streamLayer = openStompStream(socket);
+    const frameLayer = new StompFrameLayer(streamLayer);
+    const listener = {
+
+        connect(headers?: StompHeaders): Promise<void> {
+            console.log('Connect!', headers);
+            if (headers && headers.login === 'rabbit_user' && headers.passcode === 'rabbit_user') {
+                sessionLayer.connected({ version: '1.2', server: 'MyServer/1.8.2' });
+            } else {
+                sessionLayer.error({ message: 'Invalid login data' });
+            }
+            return Promise.resolve();
+        },
+        send(headers?: StompHeaders, body?: string): Promise<void> {
+            console.log('Send!', body, headers);
+            sessionLayer.message(undefined, 'This is the response message!');
+            return Promise.resolve();
+        },
+
+        subscribe(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+        unsubscribe(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+        begin(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+        commit(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+        abort(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+
+        ack(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+        nack(headers?: StompHeaders): Promise<void> {
+            console.log('');
+            return Promise.resolve();
+        },
+
+        disconnect(headers?: StompHeaders): Promise<void> {
+            console.log('Disconnect!');
+            return Promise.resolve();
+        },
+
+        onProtocolError(error: StompError) {
+            console.log('Protocol error!', error);
+        },
+        onEnd() {
+            console.log('End!');
+        }
+    };
+    const sessionLayer = new StompServerSessionLayer(frameLayer, listener);
+
+}
+
+const server = createServer(testServer);
+
+server.listen(9999, 'localhost');
+
+/*
+socket.on('connect', () => {
+
+    frameLayer.send(new StompFrame('CONNECT', {
+        'accept-version': '1.2',
+        'host': '/',
+        'login': 'guest',
+        'passcode': 'guest'
+    }));
+
+});
+*/
+
+
+/*
+var server = net.createServer((socket) => {
+    socket.on('connect', () => {
+        //console.log('Received Unsecured Connection');
+        //new StompStreamHandler(stream, queueManager);
+        var stream = new StompStream(socket);
+        var handler = new StompProtocolHandler(stream);
+
+    });
+});
+*/

@@ -14,7 +14,7 @@ function isPresent(value: any) {
     return typeof value !== 'undefined' && value !== null;
 }
 
-function requireHeader(headerName: string) {
+export function requireHeader(headerName: string) {
     return (frame: StompFrame) => {
         if (isPresent(frame.headers[headerName])) {
             return validationOk;
@@ -27,7 +27,7 @@ function requireHeader(headerName: string) {
     };
 }
 
-function requireOneHeader(...headerNames: string[]) {
+export function requireOneHeader(...headerNames: string[]) {
     return (frame: StompFrame) => {
         for (var headerName in headerNames) {
             if (isPresent(frame.headers[headerName])) {
@@ -43,7 +43,7 @@ function requireOneHeader(...headerNames: string[]) {
     };
 }
 
-function requireAllHeaders(...headerNames: string[]) {
+export function requireAllHeaders(...headerNames: string[]) {
     return (frame: StompFrame) => {
         for (var headerName in headerNames) {
             if (!isPresent(frame.headers[headerName])) {
@@ -58,7 +58,7 @@ function requireAllHeaders(...headerNames: string[]) {
     };
 }
 
-function headerMatchesRegex(headerName: string, regex: RegExp) {
+export function headerMatchesRegex(headerName: string, regex: RegExp) {
     return (frame: StompFrame) => {
         var headerValue = frame.headers[headerName];
         if (typeof headerValue !== 'string' || !headerValue.match(regex)) {

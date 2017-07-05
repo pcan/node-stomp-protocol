@@ -1,9 +1,11 @@
 import { EventEmitter } from "events";
 
-export type StompHeaders = { [key: string]: string | number };
+export type StompHeaders = { [key: string]: string };
 
-export interface StompSessionData {
-    id:string;
+export class StompSessionData {
+    id: string | null = null;
+    authenticated = false;
+    subscriptions: {[key: string]: boolean} = {};
 }
 
 export class StompError extends Error {
@@ -24,7 +26,7 @@ export class StompFrame {
         this.headers = headers || {};
     }
 
-    public setHeader(key: string, value: string | number) {
+    public setHeader(key: string, value: string) {
         this.headers[key] = value;
     }
 

@@ -8,8 +8,10 @@ type StompStreamEvent = 'data' | 'end';
 export interface StompStreamLayer {
 
     emitter: StompEventEmitter<StompStreamEvent>;
-    send(data: string): void;
-    close(): void;
+
+    send(data: string): Promise<void>;
+
+    close(): Promise<void>;
 
 }
 
@@ -50,12 +52,16 @@ class StompSocketStreamLayer implements StompStreamLayer {
         }
     }
 
-    public send(data: string) {
-        this.socket.write(data);
+    public async send(data: string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.socket.write(data, resolve);
+        });
     }
 
-    public close() {
-        this.socket.end();
+    public async close(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            this.socket.end(resolve);
+        });
     }
 
 }

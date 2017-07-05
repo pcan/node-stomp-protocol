@@ -26,7 +26,7 @@ export class StompFrameLayer {
         stream.emitter.on('end', () => this.onEnd());
     }
 
-    public send(frame: StompFrame) {
+    public async send(frame: StompFrame) {
         var data = frame.command + '\n';
         for (var key in frame.headers) {
             data += key + ':' + frame.headers[key] + '\n';
@@ -42,12 +42,12 @@ export class StompFrameLayer {
         }
         data += '\0';
         if (frame) {
-            this.stream.send(data);
+            return this.stream.send(data);
         }
     }
 
-    public close() {
-        this.stream.close();
+    public async close() {
+        return this.stream.close();
     }
 
     private onData(data: Buffer) {
