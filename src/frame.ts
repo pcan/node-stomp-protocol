@@ -15,11 +15,12 @@ type StompFrameEvent = 'frame' | 'error' | 'end';
 export class StompFrameLayer {
 
     public readonly emitter = new StompEventEmitter<StompFrameEvent>();
-
+    public maxBufferSize = 10 * 1024;
     private frame: StompFrame;
     private contentLength: number;
-    private buffer = '';
-    private status: StompFrameStatus = StompFrameStatus.COMMAND;
+    private buffer = Buffer.alloc(0);
+    private status = StompFrameStatus.COMMAND;
+    private newlineCounter = 0;
 
     constructor(private readonly stream: StompStreamLayer) {
         stream.emitter.on('data', (data: Buffer) => this.onData(data));
@@ -50,22 +51,27 @@ export class StompFrameLayer {
     }
 
     private onData(data: Buffer) {
-        this.buffer += data.toString();
-        do {
-            if (this.status === StompFrameStatus.COMMAND) {
-                this.parseCommand();
-            }
-            if (this.status === StompFrameStatus.HEADERS) {
-                this.parseHeaders();
-            }
-            if (this.status === StompFrameStatus.BODY) {
-                this.parseBody();
-            }
-            if (this.status === StompFrameStatus.ERROR) {
-                this.parseError();
-            }
-            //waiting for further commands, there is other data remaining
-        } while (this.status === StompFrameStatus.COMMAND && this.hasLine());
+        this.buffer = Buffer.concat([this.buffer, data]);
+        if (this.buffer.length <= this.maxBufferSize) {
+            do {
+                if (this.status === StompFrameStatus.COMMAND) {
+                    this.parseCommand();
+                }
+                if (this.status === StompFrameStatus.HEADERS) {
+                    this.parseHeaders();
+                }
+                if (this.status === StompFrameStatus.BODY) {
+                    this.parseBody();
+                }
+                if (this.status === StompFrameStatus.ERROR) {
+                    this.parseError();
+                }
+                //waiting for further commands, there is other data remaining
+            } while (this.status === StompFrameStatus.COMMAND && this.hasLine());
+        } else {
+            this.error(new StompError('Maximum buffer size exceeded.'));
+            this.stream.close();
+        }
     }
 
     private onEnd() {
@@ -75,8 +81,8 @@ export class StompFrameLayer {
     private parseCommand() {
         while (this.hasLine()) {
             var commandLine = this.popLine();
-            if (commandLine !== '') {  //TODO: security check for length
-                this.frame = new StompFrame(commandLine);
+            if (commandLine.length > 0 && commandLine.length < 30) {
+                this.frame = new StompFrame(commandLine.toString().replace('\r', ''));
                 this.contentLength = -1;
                 this.incrementStatus();
                 break;
@@ -86,13 +92,13 @@ export class StompFrameLayer {
 
     private parseHeaders() {
         var value;
-        while (this.hasLine()) {  //TODO: security check for length
+        while (this.hasLine()) {
             var headerLine = this.popLine();
-            if (headerLine === '') { //TODO: optimization: check if command is valid
+            if (headerLine.length === 0) {
                 this.incrementStatus();
                 break;
             } else {
-                var kv = headerLine.split(':');
+                var kv = headerLine.toString().replace('\r', '').split(':');
                 if (kv.length < 2) {
                     this.error(new StompError('Error parsing header', `No ':' in line '${headerLine}'`));
                     break;
@@ -106,15 +112,15 @@ export class StompFrameLayer {
         }
     }
 
-    private parseBody() { //TODO: security check for length (watch appendToBody)
+    private parseBody() {
         var bufferBuffer = new Buffer(this.buffer);
 
         if (this.contentLength > -1) {
             var remainingLength = this.contentLength - this.frame.body.length;
 
             if (remainingLength < bufferBuffer.length) {
-                this.frame.appendToBody(bufferBuffer.slice(0, remainingLength).toString());
-                this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length).toString();
+                this.frame.appendToBody(bufferBuffer.slice(0, remainingLength));
+                this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length);
 
                 if (this.contentLength === Buffer.byteLength(this.frame.body)) {
                     this.contentLength = -1;
@@ -128,7 +134,7 @@ export class StompFrameLayer {
 
         if (index == -1) {
             this.frame.appendToBody(this.buffer);
-            this.buffer = '';
+            this.buffer = Buffer.alloc(0);
         } else {
             // The end of the frame has been identified, finish creating it
             this.frame.appendToBody(this.buffer.slice(0, index));
@@ -137,7 +143,7 @@ export class StompFrameLayer {
             this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
 
             this.incrementStatus();
-            this.buffer = this.buffer.substr(index + 1);
+            this.buffer = this.buffer.slice(index + 1);
         }
     }
 
@@ -147,10 +153,10 @@ export class StompFrameLayer {
     private parseError() {
         var index = this.buffer.indexOf('\0');
         if (index > -1) {
-            this.buffer = this.buffer.substr(index + 1);
+            this.buffer = this.buffer.slice(index + 1);
             this.incrementStatus();
         } else {
-            this.buffer = '';
+            this.buffer = Buffer.alloc(0);
         }
     }
 
@@ -159,11 +165,13 @@ export class StompFrameLayer {
      * @return {string} the new line available
      */
     private popLine() {
-        //TODO: security check for newline char flooding
-        //TODO: we have to handle \r values?
+        if(this.newlineCounter++ > 100) { //security check for newline char flooding
+            this.stream.close();
+            return Buffer.alloc(0);
+        }
         var index = this.buffer.indexOf('\n');
         var line = this.buffer.slice(0, index);
-        this.buffer = this.buffer.substr(index + 1);
+        this.buffer = this.buffer.slice(index + 1);
         return line;
     }
 
@@ -172,7 +180,6 @@ export class StompFrameLayer {
      * @return {boolean}
      */
     private hasLine() {
-        //TODO: we have to handle \r values?
         return (this.buffer.indexOf('\n') > -1);
     }
 

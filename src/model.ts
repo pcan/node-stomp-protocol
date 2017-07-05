@@ -31,8 +31,8 @@ export class StompFrame {
         this.headers[key] = value;
     }
 
-    public appendToBody(data: string) {
-        this.body += data;
+    public appendToBody(data: Buffer) {
+        this.body += data.toString();
     }
 
     public toString() {
