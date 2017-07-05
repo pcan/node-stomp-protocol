@@ -9,7 +9,6 @@ import { StompValidator, StompValidationResult } from './validators';
 
 
 export interface StompSession<L extends StompCommandListener> {
-    //readonly frameLayer: StompFrameLayer;
     readonly listener: L;
     readonly data: StompSessionData;
     close(): Promise<void>;
@@ -78,7 +77,7 @@ interface MessageHeaders extends StompHeaders {
 
 export class StompServerSessionLayer extends StompSessionLayer<StompClientCommandListener> implements StompServerCommands {
 
-    private protocol = StompProtocolHandlerV10; //TODO: protocol upgrade
+    private protocol = StompProtocolHandlerV10;
 
     protected get inboundCommands() {
         return this.protocol.client;
@@ -101,13 +100,11 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
                     await this.receipt({ 'receipt-id': receipt });
                 }
             } catch (error) {
-                if (error instanceof StompError) {
-                    const headers: StompHeaders = { message: error.message };
-                    if (receipt) {
-                        headers['receipt-id'] = receipt;
-                    }
-                    await this.error(headers, error.details);
+                const headers: StompHeaders = { message: error.message };
+                if (receipt) {
+                    headers['receipt-id'] = receipt;
                 }
+                await this.error(headers, error.details);
             }
         } else {
             await this.error({ message: 'You must first issue a CONNECT command' });
@@ -149,7 +146,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
 
 export class StompClientSessionLayer extends StompSessionLayer<StompServerCommandListener> implements StompClientCommands {
 
-    private protocol = StompProtocolHandlerV10; //TODO: v.1.2
+    private protocol = StompProtocolHandlerV10;
 
     protected get inboundCommands() {
         return this.protocol.server;
