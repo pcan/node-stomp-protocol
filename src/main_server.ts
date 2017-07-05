@@ -11,54 +11,52 @@ function testServer(socket: Socket) {
     const frameLayer = new StompFrameLayer(streamLayer);
     const listener = {
 
-        connect(headers?: StompHeaders): Promise<void> {
+        async connect(headers?: StompHeaders): Promise<void> {
             console.log('Connect!', headers);
             if (headers && headers.login === 'rabbit_user' && headers.passcode === 'rabbit_user') {
                 sessionLayer.connected({ version: '1.2', server: 'MyServer/1.8.2' });
             } else {
                 sessionLayer.error({ message: 'Invalid login data' });
             }
-            return Promise.resolve();
         },
-        send(headers?: StompHeaders, body?: string): Promise<void> {
+        async send(headers?: StompHeaders, body?: string): Promise<void> {
             console.log('Send!', body, headers);
-            sessionLayer.message(undefined, 'This is the response message!');
-            return Promise.resolve();
+            sessionLayer.message({destination: 'commonQueue'}, 'This is the response message!');
         },
 
-        subscribe(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
+        async subscribe(headers?: StompHeaders): Promise<void> {
+            if (headers) {
+                if (headers.destination === 'commonQueue') {
+                    console.log('subscription done to commonQueue');
+                } else {
+                    throw new StompError('Cannot subscribe to' + headers.destination);
+                }
+            }
+            /*console.log('');
+            return Promise.resolve();*/
         },
-        unsubscribe(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
+        async unsubscribe(headers?: StompHeaders): Promise<void> {
+            console.log('unsubscribe', headers);
         },
-        begin(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
+        async begin(headers?: StompHeaders): Promise<void> {
+            console.log('begin', headers);
         },
-        commit(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
+        async commit(headers?: StompHeaders): Promise<void> {
+            console.log('commit', headers);
         },
-        abort(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
-        },
-
-        ack(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
-        },
-        nack(headers?: StompHeaders): Promise<void> {
-            console.log('');
-            return Promise.resolve();
+        async abort(headers?: StompHeaders): Promise<void> {
+            console.log('abort', headers);
         },
 
-        disconnect(headers?: StompHeaders): Promise<void> {
-            console.log('Disconnect!');
-            return Promise.resolve();
+        async ack(headers?: StompHeaders): Promise<void> {
+            console.log('ack', headers);
+        },
+        async nack(headers?: StompHeaders): Promise<void> {
+            console.log('nack', headers);
+        },
+
+        async disconnect(headers?: StompHeaders): Promise<void> {
+            console.log('Disconnect!', headers);
         },
 
         onProtocolError(error: StompError) {

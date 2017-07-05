@@ -5,7 +5,8 @@ export type StompHeaders = { [key: string]: string };
 export class StompSessionData {
     id: string | null = null;
     authenticated = false;
-    subscriptions: {[key: string]: boolean} = {};
+    subscriptions: { [key: string]: boolean } = {};
+    transactions: { [key: string]: boolean } = {};
 }
 
 export class StompError extends Error {

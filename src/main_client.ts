@@ -9,23 +9,23 @@ const socket = createConnection(9999, '127.0.0.1');
 const streamLayer = openStompStream(socket);
 const frameLayer = new StompFrameLayer(streamLayer);
 const listener = {
-    connected(headers?: StompHeaders): Promise<void> {
+    async connected(headers?: StompHeaders): Promise<void> {
         console.log('Connected!', headers);
-        sessionLayer.send(undefined, 'this is the message body');
-        return Promise.resolve();
+        await sessionLayer.subscribe({ destination: 'commonQueue' });
+        await sessionLayer.unsubscribe({ destination: 'commonQueue' });
+        await sessionLayer.unsubscribe({ destination: 'commonQueue' });
     },
 
-    message(headers?: StompHeaders, body?: string): Promise<void> {
+    async message(headers?: StompHeaders, body?: string): Promise<void> {
         console.log('Message!', body, headers);
-        return sessionLayer.disconnect({});
+        //return sessionLayer.disconnect({});
+        await sessionLayer.send(undefined, 'this is the message body');
     },
-    receipt(headers?: StompHeaders): Promise<void> {
+    async receipt(headers?: StompHeaders): Promise<void> {
         console.log('Receipt!', headers);
-        return Promise.resolve();
     },
-    error(headers?: StompHeaders, body?: string): Promise<void> {
+    async error(headers?: StompHeaders, body?: string): Promise<void> {
         console.log('Error!', headers, body);
-        return Promise.resolve();
     },
     onProtocolError(error: StompError) {
         console.log('Protocol error!', error);
@@ -54,7 +54,6 @@ new Promise((resolve, reject) => {
     socket.on('connect', resolve);
 }).then(() => {
     sessionLayer.connect({
-        'accept-version': '1.2',
         'host': '/',
         'login': 'rabbit_user',
         'passcode': 'rabbit_user'

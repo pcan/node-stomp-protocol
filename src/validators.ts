@@ -29,7 +29,7 @@ export function requireHeader(headerName: string) {
 
 export function requireOneHeader(...headerNames: string[]) {
     return (frame: StompFrame) => {
-        for (var headerName in headerNames) {
+        for (var headerName of headerNames) {
             if (isPresent(frame.headers[headerName])) {
                 return validationOk;
             }
@@ -45,7 +45,7 @@ export function requireOneHeader(...headerNames: string[]) {
 
 export function requireAllHeaders(...headerNames: string[]) {
     return (frame: StompFrame) => {
-        for (var headerName in headerNames) {
+        for (var headerName of headerNames) {
             if (!isPresent(frame.headers[headerName])) {
                 return {
                     isValid: false,

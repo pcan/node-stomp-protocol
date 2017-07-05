@@ -41,13 +41,12 @@ export class StompFrameLayer {
             data += frame.body;
         }
         data += '\0';
-        if (frame) {
-            return this.stream.send(data);
-        }
+
+        await this.stream.send(data);
     }
 
     public async close() {
-        return this.stream.close();
+        await this.stream.close();
     }
 
     private onData(data: Buffer) {
