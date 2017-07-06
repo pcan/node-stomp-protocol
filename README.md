@@ -23,3 +23,11 @@ import * as stomp from 'node-stomp-protocol';
 ## Usage
 
 Work in progress.
+
+## Credits
+
+This project includes some code by [node-stomp-client](https://github.com/easternbloc/node-stomp-client).
+
+## License
+
+Released with MIT License.
