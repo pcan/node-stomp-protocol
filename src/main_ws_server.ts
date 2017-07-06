@@ -1,5 +1,5 @@
 import { StompFrame, StompHeaders, StompError } from './model';
-import { openWebSocketStream } from './stream';
+import { openStream } from './stream';
 import { StompFrameLayer } from './frame';
 import { StompServerSessionLayer } from './session';
 import * as WebSocket from 'ws';
@@ -7,7 +7,7 @@ import * as WebSocket from 'ws';
 
 function testServer(webSocket: WebSocket) {
 
-    const streamLayer = openWebSocketStream(webSocket);
+    const streamLayer = openStream(webSocket);
     const frameLayer = new StompFrameLayer(streamLayer);
     const listener = {
 

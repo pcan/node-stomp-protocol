@@ -14,7 +14,7 @@ export interface StompSession<L extends StompCommandListener> {
     close(): Promise<void>;
 }
 
-abstract class StompSessionLayer<L extends StompCommandListener> implements StompSession<L> {
+export abstract class StompSessionLayer<L extends StompCommandListener> implements StompSession<L> {
 
     protected abstract get inboundCommands(): StompCommands<L>;
     readonly data = new StompSessionData();

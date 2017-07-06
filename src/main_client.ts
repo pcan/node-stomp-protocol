@@ -1,13 +1,13 @@
 import { Socket, createConnection } from 'net';
 import { StompFrame, StompHeaders, StompError } from './model';
-import { openStompStream } from './stream';
+import { openStream } from './stream';
 import { StompFrameLayer } from './frame';
 import { StompClientSessionLayer } from './session';
 import { StompServerCommandListener } from './protocol';
 
 const socket = createConnection(9999, '127.0.0.1');
 
-const streamLayer = openStompStream(socket);
+const streamLayer = openStream(socket);
 const frameLayer = new StompFrameLayer(streamLayer);
 const listener: StompServerCommandListener = {
     async connected(headers?: StompHeaders): Promise<void> {

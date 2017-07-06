@@ -10,7 +10,7 @@ enum StompFrameStatus {
     ERROR = 3
 }
 
-type StompFrameEvent = 'frame' | 'error' | 'end';
+export type StompFrameEvent = 'frame' | 'error' | 'end';
 
 export class StompFrameLayer {
 

@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { Socket } from 'net';
 import * as WebSocket from 'ws';
 
-type StompStreamEvent = 'data' | 'end';
+export type StompStreamEvent = 'data' | 'end';
 
 export interface StompStreamLayer {
 
@@ -15,16 +15,15 @@ export interface StompStreamLayer {
 
 }
 
-
-export function openSocketStream(socket: Socket): StompStreamLayer {
-    return new StompSocketStreamLayer(socket);
+export function openStream(socket: Socket | WebSocket): StompStreamLayer {
+    if (socket instanceof Socket) {
+        return new StompSocketStreamLayer(socket);
+    }
+    if (socket instanceof WebSocket) {
+        return new StompWebSocketStreamLayer(socket);
+    }
+    throw new Error('Unsupported socket type');
 }
-
-export function openWebSocketStream(webSocket: WebSocket): StompStreamLayer {
-    return new StompWebSocketStreamLayer(webSocket);
-}
-
-
 
 class StompSocketStreamLayer implements StompStreamLayer {
 
@@ -58,13 +57,21 @@ class StompSocketStreamLayer implements StompStreamLayer {
 
     public async send(data: string): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.socket.write(data, resolve);
+            try {
+                this.socket.write(data, resolve);
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
     public async close(): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.socket.end(resolve);
+            try {
+                this.socket.end(resolve);
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
@@ -98,15 +105,25 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
 
     public async send(data: string): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.webSocket.send(data);
-            resolve();
+            try {
+                this.webSocket.send(data);
+            } catch (err) {
+                reject(err);
+            } finally {
+                resolve();
+            }
         });
     }
 
     public async close(): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.webSocket.close();
-            resolve();
+            try {
+                this.webSocket.close();
+            } catch (err) {
+                reject(err);
+            } finally {
+                resolve();
+            }
         });
     }
 

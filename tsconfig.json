@@ -5,6 +5,7 @@
         "target": "ES6",
         "inlineSourceMap": true,
         "outDir": "./dist",
+        "declaration": true,
         "strict": true,
         "typeRoots": ["node_modules/@types"]
     },
