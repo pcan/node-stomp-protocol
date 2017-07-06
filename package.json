@@ -1,14 +1,33 @@
 {
-  "name": "node-stomp-broker",
-  "version": "1.0.0",
-  "private": true,
-  "devDependencies": {
-    "@types/node": "^8.0.5",
-    "@types/uuid": "^3.0.0",
-    "@types/ws": "^3.0.0"
-  },
-  "dependencies": {
-    "uuid": "^3.1.0",
-    "ws": "^3.0.0"
-  }
+    "name": "node-stomp-protocol",
+    "version": "0.1.0",
+    "author": "Pierantonio Cangianiello",
+    "homepage": "https://github.com/pcan/node-stomp-protocol",
+    "license": "MIT",
+    "description": "STOMP Protocol for NodeJS",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "keywords": [
+        "stomp",
+        "protocol",
+        "websocket",
+        "broker"
+    ],
+    "bugs": {
+        "url": "https://github.com/pcan/node-stomp-protocol/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/pcan/node-stomp-protocol.git"
+    },
+    "engines": {
+        "node": ">=7.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "8.0.5",
+        "@types/ws": "3.0.0"
+    },
+    "dependencies": {
+        "ws": "3.0.0"
+    }
 }

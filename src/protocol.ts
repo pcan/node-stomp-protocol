@@ -1,7 +1,6 @@
 import { StompFrame, StompHeaders, StompError, StompSessionData } from './model';
 import { StompSession } from './session'
 import { StompValidator, requireHeader, requireAllHeaders, requireOneHeader } from './validators'
-import * as uuid from 'uuid/v4';
 
 export interface StompServerCommands {
 

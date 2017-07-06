@@ -1,3 +1,4 @@
+
 import { openStream } from './stream';
 import { StompServerCommandListener, StompClientCommandListener, StompServerCommands, StompClientCommands } from './protocol';
 import { StompServerSessionLayer, StompClientSessionLayer } from './session';
@@ -5,7 +6,8 @@ import { StompFrameLayer } from './frame';
 import { Socket } from 'net';
 import * as WebSocket from 'ws';
 
-export { StompServerCommandListener, StompClientCommandListener, StompServerCommands, StompClientCommands } from './protocol';
+export * from './protocol'
+export * from './model'
 
 export function createStompServerSession(socket: Socket | WebSocket, listener: StompClientCommandListener): StompServerCommands {
     const streamLayer = openStream(socket);
