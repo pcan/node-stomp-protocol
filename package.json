@@ -10,7 +10,7 @@
     "scripts": {
         "prepublish": "tsc",
         "pretest": "tsc -p test/",
-        "test": "mocha test/built/*.js"
+        "test": "mocha test/built/test/*.js --colors"
     },
     "keywords": [
         "stomp",
@@ -29,9 +29,13 @@
         "node": ">=7.0.0"
     },
     "devDependencies": {
+        "@types/chai": "^4.0.1",
+        "@types/chai-as-promised": "0.0.31",
         "@types/mocha": "^2.2.41",
         "@types/node": "8.0.5",
         "@types/ws": "3.0.0",
+        "chai": "^4.0.2",
+        "chai-as-promised": "^7.1.1",
         "mocha": "^3.4.2"
     },
     "dependencies": {
