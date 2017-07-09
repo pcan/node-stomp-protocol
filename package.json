@@ -7,6 +7,11 @@
     "description": "STOMP Protocol for NodeJS",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
+    "scripts": {
+        "prepublish": "tsc",
+        "pretest": "tsc -p test/",
+        "test": "mocha test/built/*.js"
+    },
     "keywords": [
         "stomp",
         "protocol",
@@ -24,8 +29,10 @@
         "node": ">=7.0.0"
     },
     "devDependencies": {
+        "@types/mocha": "^2.2.41",
         "@types/node": "8.0.5",
-        "@types/ws": "3.0.0"
+        "@types/ws": "3.0.0",
+        "mocha": "^3.4.2"
     },
     "dependencies": {
         "ws": "3.0.0"

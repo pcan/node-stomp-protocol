@@ -3,12 +3,9 @@
         "moduleResolution": "node",
         "module": "CommonJS",
         "target": "ES6",
-        "inlineSourceMap": true,
-        "outDir": "./dist",
-        "declaration": true,
         "strict": true,
-        "typeRoots": ["node_modules/@types"]
+        "outDir": "./built",
+        "typeRoots": ["../node_modules/@types"]
     },
-    "exclude": ["test"],
     "compileOnSave": true
 }
