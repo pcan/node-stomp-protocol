@@ -2,6 +2,11 @@ import { EventEmitter } from "events";
 
 export type StompHeaders = { [key: string]: string };
 
+export interface StompConfig {
+    connectTimeout?: number;
+    headersFilter?: (headerName: string) => boolean;
+}
+
 export class StompSessionData {
     id: string | null = null;
     authenticated = false;

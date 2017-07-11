@@ -15,7 +15,7 @@ function check(f: Function, done: Function) {
 
 describe('STOMP Frame Layer', () => {
     const connectFrameText = 'CONNECT\naccept-version:1.2\nhost:/myHost\n\n\0';
-    const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2', host: '/myHost' });
+    let connectFrame: StompFrame;
     let streamLayer: StompStreamLayer;
     let frameLayer: StompFrameLayer;
 
@@ -26,6 +26,7 @@ describe('STOMP Frame Layer', () => {
             async send(data) { }
         };
         frameLayer = new StompFrameLayer(streamLayer);
+        connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2', host: '/myHost' });
     });
 
     it('should send basic CONNECT message', (done) => {
@@ -41,6 +42,16 @@ describe('STOMP Frame Layer', () => {
             check(() => chai.assert.deepEqual(connectFrame, frame), done);
         });
         streamLayer.emitter.emit('data', new Buffer(connectFrameText));
+    });
+
+    it('should send CONNECT message with filtered headers', (done) => {
+        streamLayer.send = async (data) => {
+            const result = connectFrameText === data ? undefined : 'CONNECT Frame data does not match.';
+            done(result);
+        }
+        frameLayer.headerFilter = (headerName) => headerName !== 'X-remove-this';
+        connectFrame.setHeader('X-remove-this', 'dummy-value');
+        frameLayer.send(connectFrame);
     });
 
 

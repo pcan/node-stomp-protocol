@@ -1,4 +1,4 @@
-import { StompFrame, StompEventEmitter, StompError } from "./model";
+import { StompFrame, StompEventEmitter, StompError, StompConfig } from "./model";
 import { StompStreamLayer } from "./stream";
 import { EventEmitter } from "events";
 
@@ -21,6 +21,7 @@ export class StompFrameLayer {
     private buffer = Buffer.alloc(0);
     private status = StompFrameStatus.COMMAND;
     private newlineCounter = 0;
+    public headerFilter = (headerName: string) => true;
 
     constructor(private readonly stream: StompStreamLayer) {
         stream.emitter.on('data', (data: Buffer) => this.onData(data));
@@ -28,8 +29,9 @@ export class StompFrameLayer {
     }
 
     public async send(frame: StompFrame) {
-        var data = frame.command + '\n';
-        for (var key in frame.headers) {
+        let data = frame.command + '\n';
+        let headers = Object.keys(frame.headers).filter(this.headerFilter).sort();
+        for (var key of headers) {
             data += key + ':' + frame.headers[key] + '\n';
         }
         if (frame.body.length > 0) {
@@ -165,7 +167,7 @@ export class StompFrameLayer {
      * @return {string} the new line available
      */
     private popLine() {
-        if(this.newlineCounter++ > 100) { //security check for newline char flooding
+        if (this.newlineCounter++ > 100) { //security check for newline char flooding
             this.stream.close();
             return Buffer.alloc(0);
         }

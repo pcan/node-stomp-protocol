@@ -9,6 +9,6 @@
         "strict": true,
         "typeRoots": ["node_modules/@types"]
     },
-    "exclude": ["test"],
+    "exclude": ["test", "dist"],
     "compileOnSave": true
 }
