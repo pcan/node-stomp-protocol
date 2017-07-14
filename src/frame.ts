@@ -169,7 +169,7 @@ export class StompFrameLayer {
     private popLine() {
         if (this.newlineCounter++ > 100) { //security check for newline char flooding
             this.stream.close();
-            return Buffer.alloc(0);
+            throw new Error('Newline flooding detected.');
         }
         var index = this.buffer.indexOf('\n');
         var line = this.buffer.slice(0, index);
@@ -200,6 +200,7 @@ export class StompFrameLayer {
     private incrementStatus() {
         if (this.status === StompFrameStatus.BODY || this.status === StompFrameStatus.ERROR) {
             this.status = StompFrameStatus.COMMAND;
+            this.newlineCounter = 0;
         } else {
             this.status++;
         }
