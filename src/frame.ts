@@ -28,6 +28,9 @@ export class StompFrameLayer {
         stream.emitter.on('end', () => this.onEnd());
     }
 
+    /**
+     * Transmit a frame using the underlying stream layer.
+     */
     public async send(frame: StompFrame) {
         let data = frame.command + '\n';
         let headers = Object.keys(frame.headers).filter(this.headerFilter).sort();
@@ -48,10 +51,17 @@ export class StompFrameLayer {
         await this.stream.send(data);
     }
 
+    /**
+     * Closes the underlying stream layer.
+     */
     public async close() {
         await this.stream.close();
     }
 
+    /**
+     * Main entry point for frame parsing. It's a state machine that expects
+     * the standard [ command - headers - body ] structure of a frame.
+     */
     private onData(data: Buffer) {
         this.buffer = Buffer.concat([this.buffer, data]);
         if (this.buffer.length <= this.maxBufferSize) {
@@ -68,7 +78,7 @@ export class StompFrameLayer {
                 if (this.status === StompFrameStatus.ERROR) {
                     this.parseError();
                 }
-                //waiting for further commands, there is other data remaining
+                // still waiting for command line, there is other data remaining
             } while (this.status === StompFrameStatus.COMMAND && this.hasLine());
         } else {
             this.error(new StompError('Maximum buffer size exceeded.'));
@@ -83,6 +93,7 @@ export class StompFrameLayer {
     private parseCommand() {
         while (this.hasLine()) {
             var commandLine = this.popLine();
+             // command length security check: should be in 1 - 30 char range.
             if (commandLine.length > 0 && commandLine.length < 30) {
                 this.frame = new StompFrame(commandLine.toString().replace('\r', ''));
                 this.contentLength = -1;
@@ -92,6 +103,10 @@ export class StompFrameLayer {
         }
     }
 
+    /**
+     * Parse and checks frame headers format. When content-length header is
+     * detected, it can be used by the body parser.
+     */
     private parseHeaders() {
         var value;
         while (this.hasLine()) {
@@ -114,6 +129,10 @@ export class StompFrameLayer {
         }
     }
 
+    /**
+     * Parse frame body, using both the content-length header and null char to
+     * determine the frame end.
+     */
     private parseBody() {
         var bufferBuffer = new Buffer(this.buffer);
 
@@ -150,9 +169,11 @@ export class StompFrameLayer {
     private parseError() {
         var index = this.buffer.indexOf('\0');
         if (index > -1) {
+            // End of the frame is already in buffer
             this.buffer = this.buffer.slice(index + 1);
             this.incrementStatus();
         } else {
+            // End of the frame not seen yet
             this.buffer = Buffer.alloc(0);
         }
     }
