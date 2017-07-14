@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "module": "CommonJS",
+        "target": "ES6",
+        "strict": true,
+        "outDir": "./built",
+        "typeRoots": ["../node_modules/@types"]
+    }
+}

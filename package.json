@@ -29,12 +29,10 @@
     },
     "nyc": {
         "include": [
-            "src/**/*.ts",
-            "src/**/*.tsx"
+            "src/**/*.ts"
         ],
         "extension": [
-            ".ts",
-            ".tsx"
+            ".ts"
         ],
         "require": [
             "ts-node/register"
