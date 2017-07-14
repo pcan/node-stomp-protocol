@@ -123,12 +123,7 @@ export class StompFrameLayer {
             if (remainingLength < bufferBuffer.length) {
                 this.frame.appendToBody(bufferBuffer.slice(0, remainingLength));
                 this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length);
-
-                if (this.contentLength === Buffer.byteLength(this.frame.body)) {
-                    this.contentLength = -1;
-                } else {
-                    return;
-                }
+                this.contentLength = -1;
             }
         }
 

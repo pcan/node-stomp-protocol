@@ -97,18 +97,26 @@ describe('STOMP Frame Layer', () => {
         frameLayer.emitter.on('error', (error: StompError) => {
             check(() => chai.assert.equal(error.message, 'Error parsing header'), done);
         });
-        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length\n\nhello\0`));
+        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\nbrokenHeader\n\nhello\0`));
+    });
+    
+    it(`should reject partial received frames in case of error`, (done) => {
+        frameLayer.emitter.on('error', (error: StompError) => {
+            check(() => chai.assert.equal(error.message, 'Error parsing header'), done);
+        });
+        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:123\nbrokenHeader\n\nhel`));
     });
 
     it(`should receive a frame split in multiple data events`, (done) => {
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
-            const expected = new StompFrame('SEND', { 'content-length': '5' }, 'hello');
+            const expected = new StompFrame('SEND', { 'content-length': '11' }, 'hello world');
             check(() => chai.assert.deepEqual(frame, expected), done);
         });
-        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\n\nhe`));
-        streamLayer.emitter.emit('data', new Buffer(`llo\0`));
+        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:11\n\nhe`));
+        streamLayer.emitter.emit('data', new Buffer(`llo `));
+        streamLayer.emitter.emit('data', new Buffer(`world\0`));
     });
-
+    
     it(`should close stream in case of newline flooding attack`, (done) => {
         streamLayer.close = async () => done();
         streamLayer.emitter.emit('data', Buffer.alloc(110, '\n'));
