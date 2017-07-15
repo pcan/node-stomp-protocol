@@ -54,6 +54,7 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should close stream when closing`, (done) => {
+        frameLayer = new StompFrameLayer(streamLayer, {});
         streamLayer.close = async () => done();
         frameLayer.close();
     });
@@ -129,6 +130,16 @@ describe('STOMP Frame Layer', () => {
         streamLayer.close = async () => {
             clearTimeout(id);
             done();
+        };
+    });
+
+    it(`should keep connection open if receiving the first frame within a certain period of time`, (done) => {
+        frameLayer = new StompFrameLayer(streamLayer, { connectTimeout: 2 });
+        const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
+        streamLayer.emitter.emit('data', new Buffer(connectFrameText));
+        setTimeout(() => done(), 7);
+        streamLayer.close = async () => {
+            done(`Disconnected. Should keep connection open after first frame.`);
         };
     });
 
