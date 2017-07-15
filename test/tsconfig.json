@@ -6,6 +6,5 @@
         "strict": true,
         "outDir": "./built",
         "typeRoots": ["../node_modules/@types"]
-    },
-    "compileOnSave": true
+    }
 }
