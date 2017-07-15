@@ -21,11 +21,21 @@ export class StompFrameLayer {
     private buffer = Buffer.alloc(0);
     private status = StompFrameStatus.COMMAND;
     private newlineCounter = 0;
+    private connectTimeout?: NodeJS.Timer;
     public headerFilter = (headerName: string) => true;
 
-    constructor(private readonly stream: StompStreamLayer) {
+    constructor(private readonly stream: StompStreamLayer, options?: StompConfig) {
         stream.emitter.on('data', (data: Buffer) => this.onData(data));
         stream.emitter.on('end', () => this.onEnd());
+        this.init(options);
+    }
+
+    private init(options?: StompConfig) {
+        if (options) {
+            if (options.connectTimeout && options.connectTimeout > 0) {
+                this.connectTimeout = setTimeout(() => this.stream.close(), options.connectTimeout);
+            }
+        }
     }
 
     /**
@@ -93,7 +103,7 @@ export class StompFrameLayer {
     private parseCommand() {
         while (this.hasLine()) {
             var commandLine = this.popLine();
-             // command length security check: should be in 1 - 30 char range.
+            // command length security check: should be in 1 - 30 char range.
             if (commandLine.length > 0 && commandLine.length < 30) {
                 this.frame = new StompFrame(commandLine.toString().replace('\r', ''));
                 this.contentLength = -1;
@@ -157,6 +167,11 @@ export class StompFrameLayer {
 
             // Emit the frame and reset
             this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
+
+            if (this.connectTimeout) { // first frame received. Cancel disconnect timeout
+                clearTimeout(this.connectTimeout);
+                delete this.connectTimeout;
+            }
 
             this.incrementStatus();
             this.buffer = this.buffer.slice(index + 1);

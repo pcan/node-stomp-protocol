@@ -17,7 +17,7 @@ describe('STOMP Frame Layer', () => {
         frameLayer = new StompFrameLayer(streamLayer);
     });
 
-    it('should send basic CONNECT message', (done) => {
+    it(`should send basic CONNECT message`, (done) => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\nhost:/myHost\n\n\0';
         streamLayer.send = async (data) => {
             const result = connectFrameText === data ? undefined : 'CONNECT Frame data does not match.';
@@ -27,18 +27,18 @@ describe('STOMP Frame Layer', () => {
         frameLayer.send(connectFrame);
     });
 
-    it('should receive basic CONNECT message', (done) => {
+    it(`should receive basic CONNECT message`, (done) => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
-        const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2'});
+        const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2' });
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
             check(() => chai.assert.deepEqual(frame, connectFrame), done);
         });
         streamLayer.emitter.emit('data', new Buffer(connectFrameText));
     });
 
-    it('should send CONNECT message with filtered headers', (done) => {
+    it(`should send CONNECT message with filtered headers`, (done) => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
-        const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2'});
+        const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2' });
         streamLayer.send = async (data) => {
             const result = connectFrameText === data ? undefined : 'CONNECT Frame data does not match.';
             done(result);
@@ -99,7 +99,7 @@ describe('STOMP Frame Layer', () => {
         });
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\nbrokenHeader\n\nhello\0`));
     });
-    
+
     it(`should reject partial received frames in case of error`, (done) => {
         frameLayer.emitter.on('error', (error: StompError) => {
             check(() => chai.assert.equal(error.message, 'Error parsing header'), done);
@@ -116,10 +116,20 @@ describe('STOMP Frame Layer', () => {
         streamLayer.emitter.emit('data', new Buffer(`llo `));
         streamLayer.emitter.emit('data', new Buffer(`world\0`));
     });
-    
+
     it(`should close stream in case of newline flooding attack`, (done) => {
         streamLayer.close = async () => done();
         streamLayer.emitter.emit('data', Buffer.alloc(110, '\n'));
+    });
+
+    it(`should disconnect if not receiving the first frame within a certain period of time`, (done) => {
+        frameLayer = new StompFrameLayer(streamLayer, { connectTimeout: 1 });
+        const timeout = 100;
+        const id = setTimeout(() => done(`Still connected, should be disconnected after timeout.`), timeout);
+        streamLayer.close = async () => {
+            clearTimeout(id);
+            done();
+        };
     });
 
 });
