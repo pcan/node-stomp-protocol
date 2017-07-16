@@ -1,8 +1,9 @@
 import 'mocha';
-import * as chai from 'chai';
+import { assert } from 'chai';
 import { StompFrameLayer } from '../src/frame';
 import { StompFrame, StompEventEmitter, StompError } from '../src/model';
 import { StompStreamLayer } from '../src/stream';
+import { check } from './helpers';
 
 describe('STOMP Frame Layer', () => {
     let streamLayer: StompStreamLayer;
@@ -31,7 +32,7 @@ describe('STOMP Frame Layer', () => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
         const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2' });
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
-            check(() => chai.assert.deepEqual(frame, connectFrame), done);
+            check(() => assert.deepEqual(frame, connectFrame), done);
         });
         streamLayer.emitter.emit('data', new Buffer(connectFrameText));
     });
@@ -80,14 +81,14 @@ describe('STOMP Frame Layer', () => {
     it(`should use content-length when present`, (done) => {
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
             const expected = new StompFrame('SEND', { 'content-length': '5' }, 'hello');
-            check(() => chai.assert.deepEqual(frame, expected), done);
+            check(() => assert.deepEqual(frame, expected), done);
         });
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\n\nhello\0`));
     });
 
     it(`should reject frames bigger than maxBufferSize`, (done) => {
         frameLayer.emitter.on('error', (error: StompError) => {
-            check(() => chai.assert.equal(error.message, 'Maximum buffer size exceeded.'), done);
+            check(() => assert.equal(error.message, 'Maximum buffer size exceeded.'), done);
         });
         frameLayer.maxBufferSize = 1024;
         const buf = Buffer.alloc(frameLayer.maxBufferSize + 1, 'a').toString();
@@ -96,14 +97,14 @@ describe('STOMP Frame Layer', () => {
 
     it(`should reject frames with broken headers`, (done) => {
         frameLayer.emitter.on('error', (error: StompError) => {
-            check(() => chai.assert.equal(error.message, 'Error parsing header'), done);
+            check(() => assert.equal(error.message, 'Error parsing header'), done);
         });
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\nbrokenHeader\n\nhello\0`));
     });
 
     it(`should reject partial received frames in case of error`, (done) => {
         frameLayer.emitter.on('error', (error: StompError) => {
-            check(() => chai.assert.equal(error.message, 'Error parsing header'), done);
+            check(() => assert.equal(error.message, 'Error parsing header'), done);
         });
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:123\nbrokenHeader\n\nhel`));
     });
@@ -111,7 +112,7 @@ describe('STOMP Frame Layer', () => {
     it(`should receive a frame split in multiple data events`, (done) => {
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
             const expected = new StompFrame('SEND', { 'content-length': '11' }, 'hello world');
-            check(() => chai.assert.deepEqual(frame, expected), done);
+            check(() => assert.deepEqual(frame, expected), done);
         });
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:11\n\nhe`));
         streamLayer.emitter.emit('data', new Buffer(`llo `));
@@ -144,12 +145,3 @@ describe('STOMP Frame Layer', () => {
     });
 
 });
-
-function check(f: Function, done: Function) {
-    try {
-        f();
-        done();
-    } catch (e) {
-        done(e);
-    }
-}

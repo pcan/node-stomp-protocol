@@ -3,4 +3,4 @@
 --require source-map-support/register
 --full-trace
 --bail
-test/**/*.ts
+test/**/*Tests.ts
