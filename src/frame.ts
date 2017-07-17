@@ -147,35 +147,40 @@ export class StompFrameLayer {
         var bufferBuffer = new Buffer(this.buffer);
 
         if (this.contentLength > -1) {
-            var remainingLength = this.contentLength - this.frame.body.length;
-
-            if (remainingLength < bufferBuffer.length) {
+            // consume data using content-length header
+            const remainingLength = this.contentLength - this.frame.body.length;
+            if (remainingLength <= bufferBuffer.length) {
                 this.frame.appendToBody(bufferBuffer.slice(0, remainingLength));
                 this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length);
                 this.contentLength = -1;
+                this.emitFrame();
             }
-        }
 
-        var index = this.buffer.indexOf('\0');
-
-        if (index == -1) {
-            this.frame.appendToBody(this.buffer);
-            this.buffer = Buffer.alloc(0);
         } else {
-            // The end of the frame has been identified, finish creating it
-            this.frame.appendToBody(this.buffer.slice(0, index));
-
-            // Emit the frame and reset
-            this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
-
-            if (this.connectTimeout) { // first frame received. Cancel disconnect timeout
-                clearTimeout(this.connectTimeout);
-                delete this.connectTimeout;
-            }
-
-            this.incrementStatus();
-            this.buffer = this.buffer.slice(index + 1);
+            // consume data using the null-char end
+            const index = this.buffer.indexOf('\0');
+            if (index == -1) {
+                this.frame.appendToBody(this.buffer);
+                this.buffer = Buffer.alloc(0);
+            } else {
+               // The end of the frame has been identified, finish creating it
+               this.frame.appendToBody(this.buffer.slice(0, index));
+               this.buffer = this.buffer.slice(index + 1);
+               this.emitFrame();
+           }
         }
+    }
+
+    private emitFrame() {
+        // Emit the frame and reset
+        this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
+
+        if (this.connectTimeout) { // first frame received. Cancel disconnect timeout
+            clearTimeout(this.connectTimeout);
+            delete this.connectTimeout;
+        }
+
+        this.incrementStatus();
     }
 
     /**
