@@ -163,11 +163,11 @@ export class StompFrameLayer {
                 this.frame.appendToBody(this.buffer);
                 this.buffer = Buffer.alloc(0);
             } else {
-               // The end of the frame has been identified, finish creating it
-               this.frame.appendToBody(this.buffer.slice(0, index));
-               this.buffer = this.buffer.slice(index + 1);
-               this.emitFrame();
-           }
+                // The end of the frame has been identified, finish creating it
+                this.frame.appendToBody(this.buffer.slice(0, index));
+                this.buffer = this.buffer.slice(index + 1);
+                this.emitFrame();
+            }
         }
     }
 
