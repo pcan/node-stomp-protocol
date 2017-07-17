@@ -3,7 +3,7 @@ import { assert, should, expect } from 'chai';
 import { StompFrame, StompEventEmitter, StompError } from '../src/model';
 import { StompFrameLayer } from '../src/frame';
 import { StompServerSessionLayer } from '../src/session';
-import { StompClientCommandListener } from '../src/protocol'
+import { StompClientCommandListener, StompProtocolHandlerV11, StompProtocolHandlerV12 } from '../src/protocol'
 import { check, countdownLatch } from './helpers';
 
 describe('STOMP Server Session Layer', () => {
@@ -26,6 +26,22 @@ describe('STOMP Server Session Layer', () => {
         const testHeaders = { login: 'user', passcode: 'pass' };
         clientListener.connect = async (headers) => {
             check(() => assert.deepEqual(testHeaders, headers), done);
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
+    });
+
+    it(`should switch to protocol v.1.1`, (done) => {
+        const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.1' };
+        clientListener.connect = async (headers) => {
+            check(() => assert.equal((<any>sessionLayer).protocol , StompProtocolHandlerV11), done);
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
+    });
+
+    it(`should switch to protocol v.1.2`, (done) => {
+        const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.2' };
+        clientListener.connect = async (headers) => {
+            check(() => assert.equal((<any>sessionLayer).protocol , StompProtocolHandlerV12), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
     });
@@ -60,6 +76,15 @@ describe('STOMP Server Session Layer', () => {
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', {}));
     });
 
+    it(`should send ERROR for invalid frame`, (done) => {
+        sessionLayer.data.authenticated = true;
+        frameLayer.send = async (frame) => {
+            check(() => expect(frame)
+                .to.deep.include({ command: 'ERROR', headers: { 'message': `Header 'destination' is required for SEND` } }), done);
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('SEND', { }, 'test message'));
+    });
+
     it(`should send ERROR with receipt when catching exceptions from listener`, (done) => {
         sessionLayer.data.authenticated = true;
         clientListener.send = async (headers) => {
@@ -71,5 +96,18 @@ describe('STOMP Server Session Layer', () => {
         };
         frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
     });
+
+    it(`should send receipt-id when incoming message includes recepit header`, (done) => {
+        sessionLayer.data.authenticated = true;
+        clientListener.send = async (headers) => {
+        };
+        frameLayer.send = async (frame) => {
+            check(() => expect(frame)
+                .to.deep.include({ command: 'RECEIPT', headers: { 'receipt-id': '123' } }), done);
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
+    });
+
+
 
 });

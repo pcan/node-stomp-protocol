@@ -112,10 +112,11 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     private switchProtocol(acceptVersion: string) {
+        if (acceptVersion.indexOf('1.1') >= 0) {
+            this.protocol = StompProtocolHandlerV11;
+        }
         if (acceptVersion.indexOf('1.2') >= 0) {
             this.protocol = StompProtocolHandlerV12;
-        } else if (acceptVersion.indexOf('1.1') >= 0) {
-            this.protocol = StompProtocolHandlerV11;
         }
     }
 
