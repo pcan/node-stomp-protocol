@@ -1,65 +1,65 @@
 {
-    "name": "node-stomp-protocol",
-    "version": "0.1.3",
-    "author": "Pierantonio Cangianiello",
-    "homepage": "https://github.com/pcan/node-stomp-protocol",
-    "license": "MIT",
-    "description": "STOMP Protocol for NodeJS",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "scripts": {
-        "prepublish": "tsc",
-        "test": "nyc mocha"
-    },
-    "keywords": [
-        "stomp",
-        "protocol",
-        "websocket",
-        "broker"
+  "name": "node-stomp-protocol",
+  "version": "0.1.3",
+  "author": "Pierantonio Cangianiello",
+  "homepage": "https://github.com/pcan/node-stomp-protocol",
+  "license": "MIT",
+  "description": "STOMP Protocol for NodeJS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prepublish": "tsc",
+    "test": "nyc mocha"
+  },
+  "keywords": [
+    "stomp",
+    "protocol",
+    "websocket",
+    "broker"
+  ],
+  "bugs": {
+    "url": "https://github.com/pcan/node-stomp-protocol/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pcan/node-stomp-protocol.git"
+  },
+  "engines": {
+    "node": ">=7.0.0"
+  },
+  "nyc": {
+    "include": [
+      "src/**/*.ts"
     ],
-    "bugs": {
-        "url": "https://github.com/pcan/node-stomp-protocol/issues"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/pcan/node-stomp-protocol.git"
-    },
-    "engines": {
-        "node": ">=7.0.0"
-    },
-    "nyc": {
-        "include": [
-            "src/**/*.ts"
-        ],
-        "extension": [
-            ".ts"
-        ],
-        "require": [
-            "ts-node/register"
-        ],
-        "reporter": [
-            "text-summary",
-            "html"
-        ],
-        "sourceMap": true,
-        "instrument": true
-    },
-    "devDependencies": {
-        "@types/chai": "^4.0.1",
-        "@types/chai-as-promised": "0.0.31",
-        "@types/mocha": "^2.2.41",
-        "@types/node": "8.0.5",
-        "@types/ws": "3.0.0",
-        "chai": "^4.0.2",
-        "chai-as-promised": "^7.1.1",
-        "istanbul": "^0.4.5",
-        "mocha": "^3.4.2",
-        "nyc": "^11.0.3",
-        "source-map-support": "^0.4.15",
-        "ts-node": "^3.2.0",
-        "typescript": "^2.4.1"
-    },
-    "dependencies": {
-        "ws": "3.0.0"
-    }
+    "extension": [
+      ".ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "reporter": [
+      "text-summary",
+      "html"
+    ],
+    "sourceMap": true,
+    "instrument": true
+  },
+  "devDependencies": {
+    "@types/chai": "^4.0.1",
+    "@types/chai-as-promised": "0.0.31",
+    "@types/mocha": "^2.2.41",
+    "@types/node": "8.0.5",
+    "@types/ws": "3.0.0",
+    "chai": "^4.0.2",
+    "chai-as-promised": "^7.1.1",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.4.2",
+    "nyc": "^11.0.3",
+    "source-map-support": "^0.4.15",
+    "ts-node": "^3.2.0",
+    "typescript": "^2.4.1"
+  },
+  "dependencies": {
+    "ws": "3.0.0"
+  }
 }
