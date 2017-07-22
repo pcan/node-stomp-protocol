@@ -16,3 +16,8 @@ export function countdownLatch(count: number, done: Function) {
         }
     };
 }
+
+
+export const noopFn = () => {};
+
+export const noopAsyncFn = async () => {};

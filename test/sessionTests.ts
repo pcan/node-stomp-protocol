@@ -20,8 +20,7 @@ describe('STOMP Server Session Layer', () => {
             emitter: new StompEventEmitter(),
             close: async () => { }
         };
-        clientListener = <StompClientCommandListener>{
-        };
+        clientListener = {} as StompClientCommandListener;
         sessionLayer = new StompServerSessionLayer(frameLayer, clientListener);
     });
 
@@ -128,6 +127,15 @@ describe('STOMP Server Session Layer', () => {
         frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
     });
 
+    it(`should handle protocol error`, (done) => {
+        sessionLayer.data.authenticated = true;
+        const error = new StompError('generic error');
+        clientListener.onProtocolError = async (error) => {
+            check(() => expect(error).to.deep.equal(error), done);
+        };
+        frameLayer.emitter.emit('error', error);
+    });
+
 });
 
 
@@ -141,8 +149,7 @@ describe('STOMP Client Session Layer', () => {
             emitter: new StompEventEmitter(),
             close: async () => { }
         };
-        serverListener = <StompServerCommandListener>{
-        };
+        serverListener = {} as StompServerCommandListener;
         sessionLayer = new StompClientSessionLayer(frameLayer, serverListener);
     });
 

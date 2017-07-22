@@ -127,7 +127,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
 
     public async connected(headers?: StompHeaders) {
         this.data.authenticated = true;
-        Object.assign(headers, { version: this.protocol.version });
+        Object.assign(headers || {}, { version: this.protocol.version });
         await this.sendFrame(new StompFrame('CONNECTED', headers));
     }
 
@@ -175,7 +175,7 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
     }
 
     public async connect(headers?: StompHeaders): Promise<void> {
-        Object.assign(headers, { 'accept-version': '1.0,1.1,1.2' });
+        Object.assign(headers || {}, { 'accept-version': '1.0,1.1,1.2' });
         await this.sendFrame(new StompFrame('CONNECT', headers));
     }
 
