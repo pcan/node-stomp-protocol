@@ -162,6 +162,18 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         this.listener.onProtocolError(error);
     }
 
+    protected async handleFrame(command: StompCommand<StompServerCommandListener>, frame: StompFrame) {
+        if(frame.command === 'CONNECTED') {
+            if(frame.headers.version === '1.1') {
+                this.protocol = StompProtocolHandlerV11;
+            }
+            if(frame.headers.version === '1.2') {
+                this.protocol = StompProtocolHandlerV12;
+            }
+        }
+        return super.handleFrame(command, frame);
+    }
+
     public async connect(headers?: StompHeaders): Promise<void> {
         Object.assign(headers, { 'accept-version': '1.0,1.1,1.2' });
         await this.sendFrame(new StompFrame('CONNECT', headers));
