@@ -143,14 +143,19 @@ describe('STOMP Client Session Layer', () => {
     let frameLayer: StompFrameLayer;
     let sessionLayer: StompClientSessionLayer;
     let serverListener: StompServerCommandListener;
+    let unhandledRejection: boolean;
+
+    process.on('unhandledRejection', () => unhandledRejection = true);
 
     beforeEach(() => {
+        unhandledRejection = false;
         frameLayer = <StompFrameLayer>{
             emitter: new StompEventEmitter(),
             close: async () => { }
         };
         serverListener = {} as StompServerCommandListener;
         sessionLayer = new StompClientSessionLayer(frameLayer, serverListener);
+        sessionLayer.internalErrorHandler = console.error;
     });
 
     it(`should send accept-version header in CONNECT frame`, (done) => {
@@ -185,6 +190,18 @@ describe('STOMP Client Session Layer', () => {
                 .to.deep.equal(error.headers), done);
         };
         frameLayer.emitter.emit('frame', error);
+    });
+
+    it(`should handle command internal errors gracefully`, (done) => {
+        let latch = countdownLatch(2, done);
+        sessionLayer.internalErrorHandler = () => latch();
+        serverListener.message = async () => {
+            throw new Error('Unhandled error!');
+        }
+        frameLayer.emitter.emit('frame', new StompFrame('MESSAGE', { 'destination': '/queue/1', 'message-id': '1', 'subscription': '1' }));
+        setTimeout(() => {
+            check(() => assert.equal(unhandledRejection, false), latch);
+        }, 0);
     });
 
 });

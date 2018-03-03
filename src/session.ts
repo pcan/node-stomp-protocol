@@ -18,6 +18,7 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
 
     protected abstract get inboundCommands(): StompCommands<L>;
     readonly data = new StompSessionData();
+    public internalErrorHandler = console.error;
 
     constructor(public readonly frameLayer: StompFrameLayer, public readonly listener: L) {
         frameLayer.emitter.on('frame', (frame) => this.onFrame(frame));
@@ -37,7 +38,7 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
                     return;
                 }
             }
-            this.handleFrame(command, frame);
+            this.handleFrame(command, frame).catch(this.internalErrorHandler);
         } else {
             this.onError(new StompError('No such command', `Unrecognized Command '${frame.command}'`));
         }
