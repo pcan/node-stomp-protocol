@@ -7,15 +7,18 @@ import {
     StompClientCommandListener, StompServerCommandListener, StompProtocolHandlerV10,
     StompProtocolHandlerV11, StompProtocolHandlerV12
 } from '../src/protocol'
-import { check, countdownLatch } from './helpers';
+import { check, countdownLatch, noopAsyncFn } from './helpers';
 
 describe('STOMP Server Session Layer', () => {
     let frameLayer: StompFrameLayer;
     let sessionLayer: StompServerSessionLayer;
     let clientListener: StompClientCommandListener;
+    let unhandledRejection: boolean;
 
+    process.on('unhandledRejection', () => unhandledRejection = true);
 
     beforeEach(() => {
+        unhandledRejection = false;
         frameLayer = <StompFrameLayer>{
             emitter: new StompEventEmitter(),
             close: async () => { }
@@ -75,7 +78,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should send ERROR if did not received CONNECT yet`, (done) => {
         const testFrame = new StompFrame('SEND', { destination: '/queue/test' }, 'test message');
-        let latch = countdownLatch(2, done);
+        const latch = countdownLatch(2, done);
         frameLayer.close = async () => latch();
         frameLayer.send = async (frame) => {
             check(() => expect(frame)
@@ -118,8 +121,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should send receipt-id when incoming message includes recepit header`, (done) => {
         sessionLayer.data.authenticated = true;
-        clientListener.send = async (headers) => {
-        };
+        clientListener.send = noopAsyncFn;
         frameLayer.send = async (frame) => {
             check(() => expect(frame)
                 .to.deep.include({ command: 'RECEIPT', headers: { 'receipt-id': '123' } }), done);
@@ -134,6 +136,18 @@ describe('STOMP Server Session Layer', () => {
             check(() => expect(error).to.deep.equal(error), done);
         };
         frameLayer.emitter.emit('error', error);
+    });
+
+    it(`should handle errors thrown during onError execution`, (done) => {
+        const latch = countdownLatch(2, done);
+        sessionLayer.internalErrorHandler = () => latch();
+        frameLayer.send = (frame: StompFrame) => {
+            throw new Error('Unhandled error!');
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('INVALIDFRAME', {}));
+        setTimeout(() => {
+            check(() => assert.equal(unhandledRejection, false), latch);
+        }, 0);
     });
 
 });
@@ -151,7 +165,7 @@ describe('STOMP Client Session Layer', () => {
         unhandledRejection = false;
         frameLayer = <StompFrameLayer>{
             emitter: new StompEventEmitter(),
-            close: async () => { }
+            close: noopAsyncFn
         };
         serverListener = {} as StompServerCommandListener;
         sessionLayer = new StompClientSessionLayer(frameLayer, serverListener);
@@ -193,7 +207,7 @@ describe('STOMP Client Session Layer', () => {
     });
 
     it(`should handle command internal errors gracefully`, (done) => {
-        let latch = countdownLatch(2, done);
+        const latch = countdownLatch(2, done);
         sessionLayer.internalErrorHandler = () => latch();
         serverListener.message = async () => {
             throw new Error('Unhandled error!');

@@ -123,7 +123,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     protected onError(error: StompError) {
-        this.error({ message: error.message }, error.details);
+        this.error({ message: error.message }, error.details).catch(this.internalErrorHandler);
     }
 
     public async connected(headers?: StompHeaders) {
