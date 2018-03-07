@@ -44,16 +44,16 @@ describe('STOMP Client & Server', () => {
     });
 
     it(`should perform connection`, (done) => {
-        serverListener.connected = async (headers) => done();
-        clientListener.connect = async (headers) => serverSession.connected();
+        serverListener.connected = (headers) => done();
+        clientListener.connect = (headers) => serverSession.connected();
         clientSession.connect();
     });
 
     it(`should perform disconnection`, (done) => {
         serverListener.onEnd = done;
-        clientListener.disconnect = async (headers) => serverSession.close();
-        serverListener.connected = async (headers) => clientSession.disconnect();
-        clientListener.connect = async (headers) => serverSession.connected();
+        clientListener.disconnect = (headers) => serverSession.close();
+        serverListener.connected = (headers) => clientSession.disconnect();
+        clientListener.connect = (headers) => serverSession.connected();
         clientSession.connect();
     });
 
@@ -65,14 +65,14 @@ describe('STOMP Client & Server', () => {
     it(`should handle server-side socket end`, (done) => {
         serverListener.connected = noopAsyncFn;
         serverListener.onEnd = done;
-        clientListener.connect = async (headers) => serverSession.connected();
+        clientListener.connect = (headers) => serverSession.connected();
         clientSession.connect().then(() => clientSession.close());
     });
 
     it(`should disconnect client after error`, (done) => {
         const latch = countdownLatch(2, done);
         serverListener.onEnd = latch;
-        serverListener.error = async () => latch();
+        serverListener.error = () => latch();
         clientSession.connect({'accept-version' : '350.215'});
     });
 });

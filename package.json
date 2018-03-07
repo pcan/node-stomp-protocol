@@ -1,6 +1,6 @@
 {
   "name": "node-stomp-protocol",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "author": "Pierantonio Cangianiello",
   "homepage": "https://github.com/pcan/node-stomp-protocol",
   "license": "MIT",

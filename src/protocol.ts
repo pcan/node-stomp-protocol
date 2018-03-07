@@ -4,30 +4,30 @@ import { StompValidator, requireHeader, requireAllHeaders, requireOneHeader } fr
 
 export interface StompServerCommands {
 
-    connected(headers?: StompHeaders): Promise<void>;
+    connected(headers?: StompHeaders): void;
 
-    message(headers?: StompHeaders, body?: string): Promise<void>;
-    receipt(headers?: StompHeaders): Promise<void>;
-    error(headers?: StompHeaders, body?: string): Promise<void>;
+    message(headers?: StompHeaders, body?: string): void;
+    receipt(headers?: StompHeaders): void;
+    error(headers?: StompHeaders, body?: string): void;
 
 }
 
 export interface StompClientCommands {
-    connect(headers?: StompHeaders): Promise<void>;
+    connect(headers?: StompHeaders): void;
 
-    send(headers?: StompHeaders, body?: string): Promise<void>;
+    send(headers?: StompHeaders, body?: string): void;
 
-    subscribe(headers?: StompHeaders): Promise<void>;
-    unsubscribe(headers?: StompHeaders): Promise<void>;
+    subscribe(headers?: StompHeaders): void;
+    unsubscribe(headers?: StompHeaders): void;
 
-    begin(headers?: StompHeaders): Promise<void>;
-    commit(headers?: StompHeaders): Promise<void>;
-    abort(headers?: StompHeaders): Promise<void>;
+    begin(headers?: StompHeaders): void;
+    commit(headers?: StompHeaders): void;
+    abort(headers?: StompHeaders): void;
 
-    ack(headers?: StompHeaders): Promise<void>;
-    nack(headers?: StompHeaders): Promise<void>;
+    ack(headers?: StompHeaders): void;
+    nack(headers?: StompHeaders): void;
 
-    disconnect(headers?: StompHeaders): Promise<void>;
+    disconnect(headers?: StompHeaders): void;
 }
 
 export interface StompCommandListener {
@@ -45,7 +45,7 @@ type ClientSession = StompSession<StompServerCommandListener>;
 
 export type StompCommand<L extends StompCommandListener> = {
     validators: StompValidator[],
-    handle: (frame: StompFrame, session: StompSession<L>) => Promise<void>
+    handle: (frame: StompFrame, session: StompSession<L>) => void
 }
 
 export type StompCommands<L extends StompCommandListener> = { [key: string]: StompCommand<L> };
@@ -61,101 +61,101 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
     client: {
         CONNECT: {
             validators: [],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.connect(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.connect(frame.headers);
             }
         },
         SEND: {
             validators: [requireHeader('destination')],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.send(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.send(frame.headers);
             }
         },
         SUBSCRIBE: {
             validators: [requireHeader('destination')],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.subscribe(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.subscribe(frame.headers);
                 const destination = getDestinationKey(frame.headers);
                 session.data.subscriptions[destination] = true;
             }
         },
         UNSUBSCRIBE: {
             validators: [requireOneHeader('destination', 'id')],
-            async handle(frame: StompFrame, session: ServerSession) {
+            handle(frame: StompFrame, session: ServerSession) {
                 const destination = getDestinationKey(frame.headers);
                 if (!session.data.subscriptions[destination]) {
                     throw new StompError(`Subscription not found for destination '${destination}'`);
                 }
                 delete session.data.subscriptions[destination];
-                await session.listener.unsubscribe(frame.headers);
+                session.listener.unsubscribe(frame.headers);
             }
         },
         BEGIN: {
             validators: [requireHeader('transaction')],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.begin(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.begin(frame.headers);
                 session.data.transactions[frame.headers && frame.headers.transaction] = true;
             }
         },
         COMMIT: {
             validators: [requireHeader('transaction')],
-            async handle(frame: StompFrame, session: ServerSession) {
+            handle(frame: StompFrame, session: ServerSession) {
                 const transaction = frame.headers && frame.headers.transaction;
                 if (!session.data.transactions[transaction]) {
                     throw new StompError(`Transaction not found '${transaction}'`);
                 }
                 delete session.data.transactions[transaction];
-                await session.listener.commit(frame.headers);
+                session.listener.commit(frame.headers);
             }
         },
         ABORT: {
             validators: [requireHeader('transaction')],
-            async handle(frame: StompFrame, session: ServerSession) {
+            handle(frame: StompFrame, session: ServerSession) {
                 const transaction = frame.headers && frame.headers.transaction;
                 if (!session.data.transactions[transaction]) {
                     throw new StompError(`Transaction not found '${transaction}'`);
                 }
                 delete session.data.transactions[transaction];
-                await session.listener.abort(frame.headers);
+                session.listener.abort(frame.headers);
             }
         },
         ACK: {
             validators: [requireHeader('message-id')],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.ack(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.ack(frame.headers);
             }
         },
         DISCONNECT: {
             validators: [],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.disconnect(frame.headers);
-                await session.close();
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.disconnect(frame.headers);
+                session.close();
             }
         }
     },
     server: {
         CONNECTED: {
             validators: [],
-            async handle(frame: StompFrame, session: ClientSession) {
-                await session.listener.connected(frame.headers);
+            handle(frame: StompFrame, session: ClientSession) {
+                session.listener.connected(frame.headers);
             }
         },
         MESSAGE: {
             validators: [requireAllHeaders('destination', 'message-id')],
-            async handle(frame: StompFrame, session: ClientSession) {
-                await session.listener.message(frame.headers, frame.body);
+            handle(frame: StompFrame, session: ClientSession) {
+                session.listener.message(frame.headers, frame.body);
             }
         },
         RECEIPT: {
             validators: [requireHeader('receipt-id')],
-            async handle(frame: StompFrame, session: ClientSession) {
-                await session.listener.receipt(frame.headers);
+            handle(frame: StompFrame, session: ClientSession) {
+                session.listener.receipt(frame.headers);
             }
         },
         ERROR: {
             validators: [],
-            async handle(frame: StompFrame, session: ClientSession) {
-                await session.listener.error(frame.headers, frame.body);
+            handle(frame: StompFrame, session: ClientSession) {
+                session.listener.error(frame.headers, frame.body);
             }
         }
     }
@@ -190,8 +190,8 @@ export const StompProtocolHandlerV11: StompProtocolHandler = {
         },
         NACK: {
             validators: [requireAllHeaders('message-id', 'subscription')],
-            async handle(frame: StompFrame, session: ServerSession) {
-                await session.listener.nack(frame.headers);
+            handle(frame: StompFrame, session: ServerSession) {
+                session.listener.nack(frame.headers);
             }
         },
         DISCONNECT: StompProtocolHandlerV10.client.DISCONNECT

@@ -20,10 +20,6 @@ Import the module using the standard syntax:
 import * as stomp from 'node-stomp-protocol';
 ```
 
-## Usage
-
-The library API is mostly asynchronous, I used `async` and `await` in order to simplify Promise-returning calls.
-
 ### Client example
 
 The following example shows how to connect to a STOMP server using this library. We use `net.Socket` here, but the library is ready for `WebSocket`s, too.
@@ -33,16 +29,16 @@ import { StompHeaders, StompError, StompServerCommandListener, createStompClient
 import { Socket, createConnection } from 'net';
 
 const listener: StompServerCommandListener = { // 1) define a listener for server-sent frames.
-    async connected(headers?: StompHeaders): Promise<void> {
+    connected(headers?: StompHeaders): Promise<void> {
         console.log('Connected!', headers);
     },
-    async message(headers?: StompHeaders, body?: string): Promise<void> {
+    message(headers?: StompHeaders, body?: string): Promise<void> {
         console.log('Message!', body, headers);
     },
-    async receipt(headers?: StompHeaders): Promise<void> {
+    receipt(headers?: StompHeaders): Promise<void> {
         console.log('Receipt!', headers);
     },
-    async error(headers?: StompHeaders, body?: string): Promise<void> {
+    error(headers?: StompHeaders, body?: string): Promise<void> {
         console.log('Error!', headers, body);
     },
     onProtocolError(error: StompError) {
@@ -57,7 +53,7 @@ const socket = createConnection(9999, '127.0.0.1'); // 2) Open raw TCP socket to
 
 const client = createStompClientSession(socket, listener); // 3) Start a STOMP Session over the TCP socket.
 
-client.connect({login:'user', passcode:'pass'}); // 4) Send the first frame!
+client.connect({login:'user', passcode:'pass'}).catch(console.error); // 4) Send the first frame!
 ```
 
 ### Server example
@@ -70,39 +66,39 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
 
     const listener: StompClientCommandListener = { // 2) define a listener for client-sent frames.
 
-        async connect(headers?: StompHeaders): Promise<void> {
+        connect(headers?: StompHeaders): Promise<void> {
             console.log('Connect!', headers);
             if (headers && headers.login === 'user' && headers.passcode === 'pass') {
-                server.connected({ version: '1.2', server: 'MyServer/1.8.2' });
+                server.connected({ version: '1.2', server: 'MyServer/1.8.2' }).catch(console.error);
             } else {
-                server.error({ message: 'Invalid login data' }, 'Invalid login data');
+                server.error({ message: 'Invalid login data' }, 'Invalid login data').catch(console.error);
             }
         },
-        async send(headers?: StompHeaders, body?: string): Promise<void> {
+        send(headers?: StompHeaders, body?: string): Promise<void> {
             console.log('Send!', body, headers);
         },
-        async subscribe(headers?: StompHeaders): Promise<void> {
+        subscribe(headers?: StompHeaders): Promise<void> {
             console.log('subscription done to ' + (headers && headers.destination));
         },
-        async unsubscribe(headers?: StompHeaders): Promise<void> {
+        unsubscribe(headers?: StompHeaders): Promise<void> {
             console.log('unsubscribe', headers);
         },
-        async begin(headers?: StompHeaders): Promise<void> {
+        begin(headers?: StompHeaders): Promise<void> {
             console.log('begin', headers);
         },
-        async commit(headers?: StompHeaders): Promise<void> {
+        commit(headers?: StompHeaders): Promise<void> {
             console.log('commit', headers);
         },
-        async abort(headers?: StompHeaders): Promise<void> {
+        abort(headers?: StompHeaders): Promise<void> {
             console.log('abort', headers);
         },
-        async ack(headers?: StompHeaders): Promise<void> {
+        ack(headers?: StompHeaders): Promise<void> {
             console.log('ack', headers);
         },
-        async nack(headers?: StompHeaders): Promise<void> {
+        nack(headers?: StompHeaders): Promise<void> {
             console.log('nack', headers);
         },
-        async disconnect(headers?: StompHeaders): Promise<void> {
+        disconnect(headers?: StompHeaders): Promise<void> {
             console.log('Disconnect!', headers);
         },
         onProtocolError(error: StompError) {

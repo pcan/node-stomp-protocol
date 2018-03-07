@@ -38,14 +38,14 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
                     return;
                 }
             }
-            this.handleFrame(command, frame).catch(this.internalErrorHandler);
+            this.handleFrame(command, frame);
         } else {
             this.onError(new StompError('No such command', `Unrecognized Command '${frame.command}'`));
         }
     }
 
-    protected async handleFrame(command: StompCommand<L>, frame: StompFrame) {
-        await command.handle(frame, this);
+    protected handleFrame(command: StompCommand<L>, frame: StompFrame) {
+        command.handle(frame, this);
     }
 
     protected async sendFrame(frame: StompFrame) {
@@ -76,7 +76,7 @@ interface MessageHeaders extends StompHeaders {
 }
 
 
-export class StompServerSessionLayer extends StompSessionLayer<StompClientCommandListener> implements StompServerCommands {
+export class StompServerSessionLayer extends StompSessionLayer<StompClientCommandListener> {
 
     private protocol = StompProtocolHandlerV10;
 
@@ -88,7 +88,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
         super(frameLayer, listener);
     }
 
-    protected async handleFrame(command: StompCommand<StompClientCommandListener>, frame: StompFrame) {
+    protected handleFrame(command: StompCommand<StompClientCommandListener>, frame: StompFrame) {
         const receipt = frame.command !== 'CONNECT' && frame.headers && frame.headers.receipt;
         const acceptVersion = frame.command === 'CONNECT' && frame.headers && frame.headers['accept-version'];
         if (this.data.authenticated || frame.command === 'CONNECT') {
@@ -96,19 +96,19 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
                 if (acceptVersion) {
                     this.switchProtocol(acceptVersion);
                 }
-                await super.handleFrame(command, frame);
+                super.handleFrame(command, frame);
                 if (receipt) {
-                    await this.receipt({ 'receipt-id': receipt });
+                    this.receipt({ 'receipt-id': receipt });
                 }
             } catch (error) {
                 const headers: StompHeaders = { message: error.message };
                 if (receipt) {
                     headers['receipt-id'] = receipt;
                 }
-                await this.error(headers, error.details);
+                this.error(headers, error.details);
             }
         } else {
-            await this.error({ message: 'You must first issue a CONNECT command' });
+            this.error({ message: 'You must first issue a CONNECT command' });
         }
     }
 
@@ -147,7 +147,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
 
 }
 
-export class StompClientSessionLayer extends StompSessionLayer<StompServerCommandListener> implements StompClientCommands {
+export class StompClientSessionLayer extends StompSessionLayer<StompServerCommandListener> {
 
     private protocol = StompProtocolHandlerV10;
 
@@ -163,16 +163,20 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         this.listener.onProtocolError(error);
     }
 
-    protected async handleFrame(command: StompCommand<StompServerCommandListener>, frame: StompFrame) {
-        if(frame.command === 'CONNECTED') {
-            if(frame.headers.version === '1.1') {
+    protected handleFrame(command: StompCommand<StompServerCommandListener>, frame: StompFrame) {
+        if (frame.command === 'CONNECTED') {
+            if (frame.headers.version === '1.1') {
                 this.protocol = StompProtocolHandlerV11;
             }
-            if(frame.headers.version === '1.2') {
+            if (frame.headers.version === '1.2') {
                 this.protocol = StompProtocolHandlerV12;
             }
         }
-        return super.handleFrame(command, frame);
+        try {
+            super.handleFrame(command, frame);
+        } catch (error) {
+            this.internalErrorHandler(error);
+        }
     }
 
     public async connect(headers?: StompHeaders): Promise<void> {
