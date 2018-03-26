@@ -9,12 +9,16 @@ describe('STOMP Frame Layer', () => {
     let streamLayer: StompStreamLayer;
     let frameLayer: StompFrameLayer;
 
-    beforeEach(() => {
-        streamLayer = {
+    function newStreamLayer(): StompStreamLayer {
+        return {
             emitter: new StompEventEmitter(),
             async close() { },
             async send(data) { }
         };
+    }
+
+    beforeEach(() => {
+        streamLayer = newStreamLayer();
         frameLayer = new StompFrameLayer(streamLayer);
     });
 
@@ -55,6 +59,7 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should close stream when closing`, (done) => {
+        streamLayer = newStreamLayer();
         frameLayer = new StompFrameLayer(streamLayer, {});
         streamLayer.close = async () => done();
         frameLayer.close();
@@ -115,7 +120,7 @@ describe('STOMP Frame Layer', () => {
 
     it(`should receive a frame in multiple data events, using null char`, (done) => {
         frameLayer.emitter.on('frame', (frame: StompFrame) =>
-            check(() => assert.deepEqual(frame, new StompFrame('SEND', { }, 'hello world')), done)
+            check(() => assert.deepEqual(frame, new StompFrame('SEND', {}, 'hello world')), done)
         );
         streamLayer.emitter.emit('data', new Buffer(`SEND\n\nhe`));
         streamLayer.emitter.emit('data', new Buffer(`llo `));
@@ -128,6 +133,7 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should disconnect if not receiving the first frame within a certain period of time`, (done) => {
+        streamLayer = newStreamLayer();
         frameLayer = new StompFrameLayer(streamLayer, { connectTimeout: 1 });
         const timeout = 100;
         const id = setTimeout(() => done(`Still connected, should be disconnected after timeout.`), timeout);
@@ -138,12 +144,25 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should keep connection open if receiving the first frame within a certain period of time`, (done) => {
+        streamLayer = newStreamLayer();
         frameLayer = new StompFrameLayer(streamLayer, { connectTimeout: 2 });
         const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
         streamLayer.emitter.emit('data', new Buffer(connectFrameText));
         setTimeout(() => done(), 7);
         streamLayer.close = async () => done(`Disconnected. Should keep connection open after first frame.`);
+    });
 
+    it(`should reset newline flooding counter after a certain period of time`, (done) => {
+        streamLayer = newStreamLayer();
+        const resetTime = 20;
+        frameLayer = new StompFrameLayer(streamLayer, { newlineFloodingResetTime: resetTime });
+        const doneTimeout = setTimeout(() => done(), resetTime + 5);
+        streamLayer.close = async () => {
+            clearTimeout(doneTimeout);
+            done(`Disconnected. Should reset newline flooding counter.`);
+        };
+        streamLayer.emitter.emit('data', Buffer.alloc(98, '\n'));
+        setTimeout(() => streamLayer.emitter.emit('data', Buffer.alloc(5, '\n')), resetTime + 2);
     });
 
 });

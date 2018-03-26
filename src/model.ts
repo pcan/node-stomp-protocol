@@ -4,6 +4,7 @@ export type StompHeaders = { [key: string]: string };
 
 export interface StompConfig {
     connectTimeout?: number;
+    newlineFloodingResetTime?: number;
     headersFilter?: (headerName: string) => boolean;
 }
 

@@ -20,6 +20,8 @@ export class StompFrameLayer {
     private contentLength: number;
     private buffer = Buffer.alloc(0);
     private status = StompFrameStatus.COMMAND;
+    private newlineFloodingResetTime = 1000;
+    private lastNewlineTime = 0;
     private newlineCounter = 0;
     private connectTimeout?: NodeJS.Timer;
     public headerFilter = (headerName: string) => true;
@@ -34,6 +36,9 @@ export class StompFrameLayer {
         if (options) {
             if (options.connectTimeout && options.connectTimeout > 0) {
                 this.connectTimeout = setTimeout(() => this.stream.close(), options.connectTimeout);
+            }
+            if (options.newlineFloodingResetTime && options.newlineFloodingResetTime > 0) {
+                this.newlineFloodingResetTime = options.newlineFloodingResetTime;
             }
         }
     }
@@ -203,6 +208,11 @@ export class StompFrameLayer {
      * @return {string} the new line available
      */
     private popLine() {
+        const now = Date.now();
+        if (now - this.lastNewlineTime > this.newlineFloodingResetTime) {
+            this.newlineCounter = 0;
+            this.lastNewlineTime = now;
+        }
         if (this.newlineCounter++ > 100) { //security check for newline char flooding
             this.stream.close();
             throw new Error('Newline flooding detected.');
