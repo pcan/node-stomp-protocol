@@ -150,6 +150,14 @@ describe('STOMP Server Session Layer', () => {
         }, 0);
     });
 
+    it(`should send headers and body for SEND frames`, (done) => {
+        sessionLayer.data.authenticated = true;
+        clientListener.send = (headers, body) => {
+            check(() => expect(body).exist, done);
+        };
+        frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
+    });
+
 });
 
 

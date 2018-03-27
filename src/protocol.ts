@@ -68,7 +68,7 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
         SEND: {
             validators: [requireHeader('destination')],
             handle(frame: StompFrame, session: ServerSession) {
-                session.listener.send(frame.headers);
+                session.listener.send(frame.headers, frame.body);
             }
         },
         SUBSCRIBE: {
