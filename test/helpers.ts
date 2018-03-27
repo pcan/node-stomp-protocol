@@ -10,8 +10,10 @@ export function check(f: Function, done: Function) {
 
 
 export function countdownLatch(count: number, done: Function) {
-    return () => {
-        if(--count <= 0) {
+    return (e?: any) => {
+        if(e instanceof Error) {
+            done(e);
+        } else if(--count <= 0) {
             done();
         }
     };

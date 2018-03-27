@@ -3,7 +3,7 @@ import { assert, expect } from 'chai';
 import { StompFrameLayer } from '../src/frame';
 import { StompFrame, StompEventEmitter, StompError } from '../src/model';
 import { StompStreamLayer } from '../src/stream';
-import { check } from './helpers';
+import { check, countdownLatch } from './helpers';
 
 describe('STOMP Frame Layer', () => {
     let streamLayer: StompStreamLayer;
@@ -163,6 +163,20 @@ describe('STOMP Frame Layer', () => {
         };
         streamLayer.emitter.emit('data', Buffer.alloc(98, '\n'));
         setTimeout(() => streamLayer.emitter.emit('data', Buffer.alloc(5, '\n')), resetTime + 2);
+    });
+
+    it(`should receive multiple frames in one data event, using content-length`, (done) => {
+        const frames: StompFrame[] = [
+            new StompFrame('SEND', { 'content-length': '5' }, 'hello'),
+            new StompFrame('SEND', { 'content-length': '5' }, 'world'),
+            new StompFrame('SEND', { 'content-length': '1' }, '!'),
+        ];
+        const latch = countdownLatch(3, done);
+        let i = 0;
+        frameLayer.emitter.on('frame', (frame: StompFrame) =>
+            check(() => expect(frame).to.deep.include(frames[i++]), latch)
+        );
+        streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\n\nhello\0SEND\ncontent-length:5\n\nworld\0SEND\ncontent-length:1\n\n!\0`));
     });
 
 });
