@@ -7,6 +7,7 @@ import { StompConfig } from './model';
 import { Socket } from 'net';
 import * as WebSocket from 'ws';
 
+export { StompServerSessionLayer, StompClientSessionLayer };
 export * from './protocol'
 export * from './model'
 
