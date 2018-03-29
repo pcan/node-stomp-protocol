@@ -14,8 +14,8 @@ export interface StompSession<L extends StompCommandListener> {
     close(): Promise<void>;
 }
 
-export interface StompCommandListenerConstructor<L extends StompCommandListener> {
-    new(session: StompSessionLayer<L>): L;
+export interface StompCommandListenerConstructor<L extends StompCommandListener, S extends StompSessionLayer<L>> {
+    new(session: S): L;
 }
 
 export abstract class StompSessionLayer<L extends StompCommandListener> implements StompSession<L> {
@@ -25,7 +25,7 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
     public internalErrorHandler = console.error;
     public readonly listener: L;
 
-    constructor(public readonly frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<L> | L) {
+    constructor(public readonly frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<L, StompSessionLayer<L>> | L) {
         if (typeof listener === 'function') {
             this.listener = new listener(this);
         } else {
@@ -94,7 +94,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
         return this.protocol.client;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompClientCommandListener> | StompClientCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompClientCommandListener, StompServerSessionLayer> | StompClientCommandListener) {
         super(frameLayer, listener);
     }
 
@@ -165,7 +165,7 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         return this.protocol.server;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerCommandListener> | StompServerCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerCommandListener, StompClientSessionLayer> | StompServerCommandListener) {
         super(frameLayer, listener);
     }
 

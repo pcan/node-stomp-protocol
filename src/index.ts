@@ -11,14 +11,14 @@ export { StompServerSessionLayer, StompClientSessionLayer };
 export * from './protocol'
 export * from './model'
 
-export function createStompServerSession(socket: Socket | WebSocket, listener: StompCommandListenerConstructor<StompClientCommandListener> | StompClientCommandListener, config?: StompConfig): StompServerSessionLayer {
+export function createStompServerSession(socket: Socket | WebSocket, listener: StompCommandListenerConstructor<StompClientCommandListener, StompServerSessionLayer> | StompClientCommandListener, config?: StompConfig): StompServerSessionLayer {
     const streamLayer = openStream(socket);
     const frameLayer = new StompFrameLayer(streamLayer);
     frameLayer.headerFilter = config && config.headersFilter || frameLayer.headerFilter;
     return new StompServerSessionLayer(frameLayer, listener);
 }
 
-export function createStompClientSession(socket: Socket | WebSocket, listener: StompCommandListenerConstructor<StompServerCommandListener> | StompServerCommandListener, config?: StompConfig): StompClientSessionLayer {
+export function createStompClientSession(socket: Socket | WebSocket, listener: StompCommandListenerConstructor<StompServerCommandListener, StompClientSessionLayer> | StompServerCommandListener, config?: StompConfig): StompClientSessionLayer {
     const streamLayer = openStream(socket);
     const frameLayer = new StompFrameLayer(streamLayer);
     frameLayer.headerFilter = config && config.headersFilter || frameLayer.headerFilter;
