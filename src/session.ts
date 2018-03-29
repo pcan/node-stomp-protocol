@@ -14,13 +14,23 @@ export interface StompSession<L extends StompCommandListener> {
     close(): Promise<void>;
 }
 
+export interface StompCommandListenerConstructor<L extends StompCommandListener> {
+    new(session: StompSessionLayer<L>): L;
+}
+
 export abstract class StompSessionLayer<L extends StompCommandListener> implements StompSession<L> {
 
     protected abstract get inboundCommands(): StompCommands<L>;
     readonly data = new StompSessionData();
     public internalErrorHandler = console.error;
+    public readonly listener: L;
 
-    constructor(public readonly frameLayer: StompFrameLayer, public readonly listener: L) {
+    constructor(public readonly frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<L> | L) {
+        if (typeof listener === 'function') {
+            this.listener = new listener(this);
+        } else {
+            this.listener = listener as L;
+        }
         frameLayer.emitter.on('frame', (frame) => this.onFrame(frame));
         frameLayer.emitter.on('error', (error) => this.listener.onProtocolError(error));
         frameLayer.emitter.on('end', () => this.onEnd());
@@ -84,7 +94,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
         return this.protocol.client;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompClientCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompClientCommandListener> | StompClientCommandListener) {
         super(frameLayer, listener);
     }
 
@@ -155,7 +165,7 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         return this.protocol.server;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompServerCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerCommandListener> | StompServerCommandListener) {
         super(frameLayer, listener);
     }
 
