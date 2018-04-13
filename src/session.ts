@@ -94,7 +94,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
         return this.protocol.client;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompClientCommandListener, StompServerSessionLayer> | StompClientCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompClientCommandListener, StompSessionLayer<StompClientCommandListener>> | StompClientCommandListener) {
         super(frameLayer, listener);
     }
 
@@ -165,7 +165,7 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         return this.protocol.server;
     }
 
-    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerCommandListener, StompClientSessionLayer> | StompServerCommandListener) {
+    constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerCommandListener, StompSessionLayer<StompServerCommandListener>> | StompServerCommandListener) {
         super(frameLayer, listener);
     }
 

@@ -12,12 +12,14 @@ enum StompFrameStatus {
 
 export type StompFrameEvent = 'frame' | 'error' | 'end';
 
+const emptyFrame = new StompFrame('');
+
 export class StompFrameLayer {
 
     public readonly emitter = new StompEventEmitter<StompFrameEvent>();
     public maxBufferSize = 10 * 1024;
-    private frame: StompFrame;
-    private contentLength: number;
+    private frame: StompFrame = emptyFrame;
+    private contentLength = -1;
     private buffer = Buffer.alloc(0);
     private status = StompFrameStatus.COMMAND;
     private newlineFloodingResetTime = 1000;
@@ -157,7 +159,7 @@ export class StompFrameLayer {
             if (remainingLength <= bufferBuffer.length) {
                 this.frame.appendToBody(bufferBuffer.slice(0, remainingLength));
                 this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length);
-                if(this.buffer.indexOf('\0') === 0) {
+                if (this.buffer.indexOf('\0') === 0) {
                     this.buffer = this.buffer.slice(1);
                 }
                 this.contentLength = -1;
