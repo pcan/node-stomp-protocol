@@ -10,9 +10,9 @@ import {
 import { createStompServerSession, createStompClientSession } from '../src/index';
 import { check, countdownLatch, noopFn, noopAsyncFn } from './helpers';
 import { createServer, Server, createConnection, Socket } from 'net';
+import * as WebSocket from 'ws';
 
-
-describe('STOMP Client & Server', () => {
+describe('STOMP Client & Server over Plain Socket', () => {
     let serverSession: StompServerSessionLayer;
     let clientSession: StompClientSessionLayer;
     let clientListener: StompClientCommandListener;
@@ -73,6 +73,44 @@ describe('STOMP Client & Server', () => {
         const latch = countdownLatch(2, done);
         serverListener.onEnd = latch;
         serverListener.error = () => latch();
-        clientSession.connect({'accept-version' : '350.215'});
+        clientSession.connect({ 'accept-version': '350.215' });
     });
+});
+
+
+describe('STOMP Client & Server over WebSocket', () => {
+    let serverSession: StompServerSessionLayer;
+    let clientSession: StompClientSessionLayer;
+    let clientListener: StompClientCommandListener;
+    let serverListener: StompServerCommandListener;
+    let server: WebSocket.Server;
+    let clientSocket: WebSocket;
+
+    beforeEach((done) => {
+        const latch = countdownLatch(2, done);
+        clientListener = {
+            onProtocolError: (err) => { },
+            onEnd: noopFn
+        } as StompClientCommandListener;
+        serverListener = {
+            onProtocolError: (err) => { },
+            onEnd: noopFn
+        } as StompServerCommandListener;
+
+        server = new WebSocket.Server({ port: 59999 }, latch);
+
+        server.on('connection', function connection(ws) {
+            serverSession = createStompServerSession(ws, clientListener);
+        });
+
+        clientSocket = new WebSocket("ws://localhost:59999/ws");
+        clientSocket.on('open', latch);
+        clientSession = createStompClientSession(clientSocket, serverListener);
+    });
+
+    afterEach((done) => {
+        clientSocket.close();
+        server.close(done);
+    });
+
 });
