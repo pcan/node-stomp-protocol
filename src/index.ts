@@ -6,13 +6,13 @@ import { StompFrameLayer } from './frame';
 import { StompConfig } from './model';
 import { Socket } from 'net';
 import * as WebSocket from 'ws';
-
 export { StompServerSessionLayer, StompClientSessionLayer };
 export * from './protocol'
 export * from './model'
+export { setLoggingListeners, LoggerFunction, StompProtocolLoggingListeners } from './utils'
 
-export type StompClientCommandListenerConstructor = StompCommandListenerConstructor<StompClientCommandListener, StompSessionLayer<StompClientCommandListener>>;
-export type StompServerCommandListenerConstructor = StompCommandListenerConstructor<StompServerCommandListener, StompSessionLayer<StompServerCommandListener>>;
+export interface StompClientCommandListenerConstructor extends StompCommandListenerConstructor<StompClientCommandListener, StompSessionLayer<StompClientCommandListener>> { }
+export interface StompServerCommandListenerConstructor extends StompCommandListenerConstructor<StompServerCommandListener, StompSessionLayer<StompServerCommandListener>> { }
 
 export function createStompServerSession(socket: Socket | WebSocket, listener: StompClientCommandListenerConstructor | StompClientCommandListener, config?: StompConfig): StompServerSessionLayer {
     const streamLayer = openStream(socket);

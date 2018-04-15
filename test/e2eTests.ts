@@ -72,6 +72,7 @@ describe('STOMP Client & Server over Plain Socket', () => {
     it(`should disconnect client after error`, (done) => {
         const latch = countdownLatch(2, done);
         serverListener.onEnd = latch;
+        clientListener.connect = () => serverSession.error();
         serverListener.error = () => latch();
         clientSession.connect({ 'accept-version': '350.215' });
     });

@@ -1,7 +1,7 @@
 import { StompFrame, StompEventEmitter, StompError, StompConfig } from "./model";
 import { StompStreamLayer } from "./stream";
 import { EventEmitter } from "events";
-
+import { log } from './utils';
 
 enum StompFrameStatus {
     COMMAND = 0,
@@ -35,6 +35,7 @@ export class StompFrameLayer {
     }
 
     private init(options?: StompConfig) {
+        log.debug("StompFrameLayer: initializing with options %j", options);
         if (options) {
             if (options.connectTimeout && options.connectTimeout > 0) {
                 this.connectTimeout = setTimeout(() => this.stream.close(), options.connectTimeout);
@@ -64,7 +65,7 @@ export class StompFrameLayer {
             data += frame.body;
         }
         data += '\0';
-
+        log.silly("StompFrameLayer: sending frame data %j", data);
         await this.stream.send(data);
     }
 
@@ -72,6 +73,7 @@ export class StompFrameLayer {
      * Closes the underlying stream layer.
      */
     public async close() {
+        log.debug("StompFrameLayer: closing");
         await this.stream.close();
     }
 
@@ -83,17 +85,22 @@ export class StompFrameLayer {
         this.buffer = Buffer.concat([this.buffer, data]);
         if (this.buffer.length <= this.maxBufferSize) {
             do {
-                if (this.status === StompFrameStatus.COMMAND) {
-                    this.parseCommand();
-                }
-                if (this.status === StompFrameStatus.HEADERS) {
-                    this.parseHeaders();
-                }
-                if (this.status === StompFrameStatus.BODY) {
-                    this.parseBody();
-                }
-                if (this.status === StompFrameStatus.ERROR) {
-                    this.parseError();
+                try {
+                    if (this.status === StompFrameStatus.COMMAND) {
+                        this.parseCommand();
+                    }
+                    if (this.status === StompFrameStatus.HEADERS) {
+                        this.parseHeaders();
+                    }
+                    if (this.status === StompFrameStatus.BODY) {
+                        this.parseBody();
+                    }
+                    if (this.status === StompFrameStatus.ERROR) {
+                        this.parseError();
+                    }
+                } catch (err) {
+                    log.warn("StompFrameLayer: error while parsing data %O", err);
+                    throw err;
                 }
                 // still waiting for command line, there is other data remaining
             } while (this.status === StompFrameStatus.COMMAND && this.hasLine());
@@ -183,6 +190,7 @@ export class StompFrameLayer {
 
     private emitFrame() {
         // Emit the frame and reset
+        log.silly("StompFrameLayer: received frame %j", this.frame);
         this.emitter.emit('frame', this.frame); // Event emit to catch any frame emission
 
         if (this.connectTimeout) { // first frame received. Cancel disconnect timeout
@@ -241,6 +249,7 @@ export class StompFrameLayer {
      * @param  {StompFrameError} error
      */
     private error(error: StompError) {
+        log.debug("StompFrameLayer: stomp error %O", error);
         this.emitter.emit('error', error);
         this.status = StompFrameStatus.ERROR;
     }

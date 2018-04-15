@@ -155,7 +155,7 @@ describe('STOMP Server Session Layer', () => {
         clientListener.send = (headers, body) => {
             check(() => expect(body).exist, done);
         };
-        frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
+        frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test' }, 'test message'));
     });
 
 });

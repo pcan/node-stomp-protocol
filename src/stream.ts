@@ -1,4 +1,5 @@
 import { StompFrame, StompEventEmitter } from './model';
+import { log } from './utils';
 import { EventEmitter } from 'events';
 import { Socket } from 'net';
 import * as WebSocket from 'ws';
@@ -30,46 +31,49 @@ class StompSocketStreamLayer implements StompStreamLayer {
     public emitter = new StompEventEmitter();
 
     constructor(private readonly socket: Socket) {
+        log.debug("StompSocketStreamLayer: new connection %s", socket.remoteAddress);
         this.socket.on('data', (data) => this.onSocketData(data));
         this.socket.on('error', (err) => this.onSocketEnd(err));
         this.socket.on('end', () => this.onSocketEnd());
     }
 
     private onSocketData(data: Buffer) {
+        log.silly("StompSocketStreamLayer: received data %j", data);
         if (this.emitter) {
             this.emitter.emit('data', data);
         }
-        //frameEmitter.handleData(data);
     }
 
     private onSocketEnd(err?: Error) {
         try {
+            log.debug("StompSocketStreamLayer: socket closed due to error %O", err);
             if (this.emitter) {
                 this.emitter.emit('end', err);
             }
-            // subscriptions.map(function(queue) {
-            //   queueManager.unsubscribe(queue, sessionId);
-            // });
         } finally {
             this.socket.end();
         }
     }
 
     public async send(data: string): Promise<any> {
+        log.silly("StompSocketStreamLayer: sending data %j", data);
         return new Promise((resolve, reject) => {
             try {
                 this.socket.write(data, resolve);
             } catch (err) {
+                log.debug("StompSocketStreamLayer: error while sending data %O", err);
                 reject(err);
             }
         });
     }
 
     public async close(): Promise<any> {
+        log.debug("StompSocketStreamLayer: closing");
         return new Promise((resolve, reject) => {
             try {
                 this.socket.end(resolve);
             } catch (err) {
+                log.debug("StompSocketStreamLayer: error while closing %O", err);
                 reject(err);
             }
         });
@@ -82,12 +86,14 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
     public emitter = new StompEventEmitter();
 
     constructor(private readonly webSocket: WebSocket) {
+        log.debug("StompWebSocketStreamLayer: new connection");
         this.webSocket.on('message', (data) => this.onWsMessage(data));
         this.webSocket.on('error', (err) => this.onWsEnd(err));
         this.webSocket.on('close', () => this.onWsEnd());
     }
 
     private onWsMessage(data: WebSocket.Data) {
+        log.silly("StompWebSocketStreamLayer: received data %O", data);
         if (this.emitter) {
             this.emitter.emit('data', new Buffer(data.toString()));
         }
@@ -95,6 +101,7 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
 
     private onWsEnd(err?: Error) {
         try {
+            log.debug("StompWebSocketStreamLayer: WebSocket closed due to error %O", err);
             if (this.emitter) {
                 this.emitter.emit('end', err);
             }
@@ -104,10 +111,12 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
     }
 
     public async send(data: string): Promise<any> {
+        log.silly("StompWebSocketStreamLayer: sending data %j", data);
         return new Promise((resolve, reject) => {
             try {
                 this.webSocket.send(data);
             } catch (err) {
+                log.debug("StompWebSocketStreamLayer: error while sending data %O", err);
                 reject(err);
             } finally {
                 resolve();
@@ -116,10 +125,12 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
     }
 
     public async close(): Promise<any> {
+        log.debug("StompWebSocketStreamLayer: closing");
         return new Promise((resolve, reject) => {
             try {
                 this.webSocket.close();
             } catch (err) {
+                log.debug("StompWebSocketStreamLayer: error while closing %O", err);
                 reject(err);
             } finally {
                 resolve();
