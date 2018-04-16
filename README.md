@@ -132,7 +132,7 @@ const server = createServer(testServer); // 4) Create a TCP server
 server.listen(9999, 'localhost'); // 5) Listen for incoming connections
 ```
 
-As in the client example, you can also use a listener class constructor accepting a `StompClientSessionLayer` parameter:
+As in the client example, you can also use a listener class constructor accepting a `StompServerSessionLayer` parameter:
 
 ```Typescript
 
