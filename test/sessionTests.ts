@@ -1,6 +1,6 @@
 import 'mocha';
 import { assert, should, expect } from 'chai';
-import { StompFrame, StompEventEmitter, StompError } from '../src/model';
+import { StompFrame, StompEventEmitter, StompHeaders, StompError } from '../src/model';
 import { StompFrameLayer } from '../src/frame';
 import { StompServerSessionLayer, StompClientSessionLayer } from '../src/session';
 import {
@@ -45,7 +45,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should switch to protocol v.1.1`, (done) => {
         const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.1' };
-        clientListener.connect =  (headers) => {
+        clientListener.connect = (headers) => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV11), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
@@ -53,7 +53,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should switch to protocol v.1.2`, (done) => {
         const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.2' };
-        clientListener.connect =  (headers) => {
+        clientListener.connect = (headers) => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV12), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
@@ -158,6 +158,27 @@ describe('STOMP Server Session Layer', () => {
         frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test' }, 'test message'));
     });
 
+    it(`should handle frames using listener constructor`, (done) => {
+        const testHeaders = { login: 'user', passcode: 'pass' };
+        class TestClientListener implements StompClientCommandListener {
+            connect(headers: StompHeaders) {
+                check(() => assert.deepEqual(testHeaders, headers), done);
+            }
+            send() { }
+            subscribe() { }
+            unsubscribe() { }
+            begin() { }
+            commit() { }
+            abort() { }
+            ack() { }
+            nack() { }
+            disconnect() { }
+            onProtocolError() { }
+            onEnd() { }
+        }
+        sessionLayer = new StompServerSessionLayer(frameLayer, TestClientListener);
+        frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
+    });
 });
 
 

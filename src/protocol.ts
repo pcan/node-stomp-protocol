@@ -36,8 +36,7 @@ export interface StompCommandListener {
     onEnd(): void;
 }
 
-export interface StompClientCommandListener extends StompClientCommands, StompCommandListener {
-}
+export interface StompClientCommandListener extends StompClientCommands, StompCommandListener { }
 
 export interface StompServerCommandListener extends StompServerCommands, StompCommandListener { }
 

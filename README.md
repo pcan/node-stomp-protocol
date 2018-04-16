@@ -29,16 +29,16 @@ import { StompHeaders, StompError, StompServerCommandListener, createStompClient
 import { Socket, createConnection } from 'net';
 
 const listener: StompServerCommandListener = { // 1) define a listener for server-sent frames.
-    connected(headers?: StompHeaders): void {
+    connected(headers?: StompHeaders) {
         console.log('Connected!', headers);
     },
-    message(headers?: StompHeaders, body?: string): void {
+    message(headers?: StompHeaders, body?: string) {
         console.log('Message!', body, headers);
     },
-    receipt(headers?: StompHeaders): void {
+    receipt(headers?: StompHeaders) {
         console.log('Receipt!', headers);
     },
-    error(headers?: StompHeaders, body?: string): void {
+    error(headers?: StompHeaders, body?: string) {
         console.log('Error!', headers, body);
     },
     onProtocolError(error: StompError) {
@@ -56,6 +56,21 @@ const client = createStompClientSession(socket, listener); // 3) Start a STOMP S
 client.connect({login:'user', passcode:'pass'}).catch(console.error); // 4) Send the first frame!
 ```
 
+You can also use a listener class constructor accepting a `StompClientSessionLayer` parameter. This decouples connection creation from protocol management:
+
+```Typescript
+
+class MyServerListener implements StompServerCommandListener {
+
+    constructor(private readonly session: StompClientSessionLayer) { }
+
+    // server listeners here...
+}
+
+createStompClientSession(socket, MyServerListener);
+
+```
+
 ### Server example
 
 ```TypeScript
@@ -66,7 +81,7 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
 
     const listener: StompClientCommandListener = { // 2) define a listener for client-sent frames.
 
-        connect(headers?: StompHeaders): void {
+        connect(headers?: StompHeaders) {
             console.log('Connect!', headers);
             if (headers && headers.login === 'user' && headers.passcode === 'pass') {
                 server.connected({ version: '1.2', server: 'MyServer/1.8.2' }).catch(console.error);
@@ -74,31 +89,31 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
                 server.error({ message: 'Invalid login data' }, 'Invalid login data').catch(console.error);
             }
         },
-        send(headers?: StompHeaders, body?: string): void {
+        send(headers?: StompHeaders, body?: string) {
             console.log('Send!', body, headers);
         },
-        subscribe(headers?: StompHeaders): void {
+        subscribe(headers?: StompHeaders) {
             console.log('subscription done to ' + (headers && headers.destination));
         },
-        unsubscribe(headers?: StompHeaders): void {
+        unsubscribe(headers?: StompHeaders) {
             console.log('unsubscribe', headers);
         },
-        begin(headers?: StompHeaders): void {
+        begin(headers?: StompHeaders) {
             console.log('begin', headers);
         },
-        commit(headers?: StompHeaders): void {
+        commit(headers?: StompHeaders) {
             console.log('commit', headers);
         },
-        abort(headers?: StompHeaders): void {
+        abort(headers?: StompHeaders) {
             console.log('abort', headers);
         },
-        ack(headers?: StompHeaders): void {
+        ack(headers?: StompHeaders) {
             console.log('ack', headers);
         },
-        nack(headers?: StompHeaders): void {
+        nack(headers?: StompHeaders) {
             console.log('nack', headers);
         },
-        disconnect(headers?: StompHeaders): void {
+        disconnect(headers?: StompHeaders) {
             console.log('Disconnect!', headers);
         },
         onProtocolError(error: StompError) {
@@ -115,6 +130,27 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
 const server = createServer(testServer); // 4) Create a TCP server
 
 server.listen(9999, 'localhost'); // 5) Listen for incoming connections
+```
+
+As in the client example, you can also use a listener class constructor accepting a `StompClientSessionLayer` parameter:
+
+```Typescript
+
+class MyClientListener implements StompClientCommandListener {
+
+    constructor(private readonly session: StompServerSessionLayer) { }
+
+    // client listeners here...
+}
+
+function testServer(socket: Socket) {
+    createStompServerSession(socket, MyServerListener);
+}
+
+const server = createServer(testServer);
+
+server.listen(9999, 'localhost');
+
 ```
 
 ## Credits
