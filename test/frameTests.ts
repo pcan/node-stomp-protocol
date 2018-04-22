@@ -179,4 +179,19 @@ describe('STOMP Frame Layer', () => {
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\n\nhello\0SEND\ncontent-length:5\n\nworld\0SEND\ncontent-length:1\n\n!\0`));
     });
 
+    it(`should decode escaped characters correctly when receiving message`, (done) => {
+        const frameText = 'SEND\ndestination:/queue/a\ncookie:key\\cvalue\n\ntest\\nmessage\0';
+        const expectedFrame = new StompFrame('SEND', { 'destination': '/queue/a', cookie: 'key:value' }, `test\nmessage`);
+        frameLayer.emitter.on('frame', (frame: StompFrame) => {
+            check(() => assert.deepEqual(frame, expectedFrame), done);
+        });
+        streamLayer.emitter.emit('data', new Buffer(frameText));
+    });
+
+    it(`should close stream when reading an unsupported escape sequence`, (done) => {
+        const frameText = 'SEND\ndestination:/queue/a\n\ntest\\tmessage\0';
+        streamLayer.close = async () => done();
+        streamLayer.emitter.emit('data', new Buffer(frameText));
+    });
+
 });

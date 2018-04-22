@@ -100,6 +100,7 @@ export class StompFrameLayer {
                     }
                 } catch (err) {
                     log.warn("StompFrameLayer: error while parsing data %O", err);
+                    this.stream.close();
                     throw err;
                 }
                 // still waiting for command line, there is other data remaining
@@ -145,7 +146,7 @@ export class StompFrameLayer {
                     break;
                 }
                 value = kv.slice(1).join(':');
-                this.frame.setHeader(kv[0], value);
+                this.frame.setHeader(kv[0], unescape(value));
                 if (kv[0] === 'content-length') {
                     this.contentLength = parseInt(value);
                 }
@@ -164,7 +165,7 @@ export class StompFrameLayer {
             // consume data using content-length header
             const remainingLength = this.contentLength - this.frame.body.length;
             if (remainingLength <= bufferBuffer.length) {
-                this.frame.appendToBody(bufferBuffer.slice(0, remainingLength));
+                this.appendToBody(bufferBuffer.slice(0, remainingLength));
                 this.buffer = bufferBuffer.slice(remainingLength, bufferBuffer.length);
                 if (this.buffer.indexOf('\0') === 0) {
                     this.buffer = this.buffer.slice(1);
@@ -177,15 +178,19 @@ export class StompFrameLayer {
             // consume data using the null-char end
             const index = this.buffer.indexOf('\0');
             if (index == -1) {
-                this.frame.appendToBody(this.buffer);
+                this.appendToBody(this.buffer);
                 this.buffer = Buffer.alloc(0);
             } else {
                 // The end of the frame has been identified, finish creating it
-                this.frame.appendToBody(this.buffer.slice(0, index));
+                this.appendToBody(this.buffer.slice(0, index));
                 this.buffer = this.buffer.slice(index + 1);
                 this.emitFrame();
             }
         }
+    }
+
+    private appendToBody(buffer: Buffer) {
+        this.frame.body += unescape(buffer.toString());
     }
 
     private emitFrame() {
@@ -227,7 +232,6 @@ export class StompFrameLayer {
             this.lastNewlineTime = now;
         }
         if (this.newlineCounter++ > 100) { //security check for newline char flooding
-            this.stream.close();
             throw new Error('Newline flooding detected.');
         }
         var index = this.buffer.indexOf('\n');
@@ -266,4 +270,18 @@ export class StompFrameLayer {
         }
     }
 
+}
+
+function unescape(value: string): string {
+    if (value.indexOf('\\') >= 0) {
+        if (value.indexOf('\\t') >= 0) {
+            throw new Error("Unsupported escape sequence detected.");
+        }
+        value = value
+            .replace(/\\n/g, '\n')
+            .replace(/\\c/g, ':')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\r/g, '\r');
+    }
+    return value;
 }
