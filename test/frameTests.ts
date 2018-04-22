@@ -24,10 +24,7 @@ describe('STOMP Frame Layer', () => {
 
     it(`should send basic CONNECT message`, (done) => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\nhost:/myHost\n\n\0';
-        streamLayer.send = async (data) => {
-            const result = connectFrameText === data ? undefined : 'CONNECT Frame data does not match.';
-            done(result);
-        }
+        streamLayer.send = async (data) => check(() => assert.equal(data, connectFrameText), done);
         const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2', host: '/myHost' });
         frameLayer.send(connectFrame);
     });
@@ -44,10 +41,7 @@ describe('STOMP Frame Layer', () => {
     it(`should send CONNECT message with filtered headers`, (done) => {
         const connectFrameText = 'CONNECT\naccept-version:1.2\n\n\0';
         const connectFrame = new StompFrame('CONNECT', { 'accept-version': '1.2' });
-        streamLayer.send = async (data) => {
-            const result = connectFrameText === data ? undefined : 'CONNECT Frame data does not match.';
-            done(result);
-        }
+        streamLayer.send = async (data) => check(() => assert.equal(data, connectFrameText), done);
         frameLayer.headerFilter = (headerName) => headerName !== 'X-remove-this';
         connectFrame.setHeader('X-remove-this', 'dummy-value');
         frameLayer.send(connectFrame);
@@ -80,9 +74,9 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should use content-length when present`, (done) => {
-        frameLayer.emitter.on('frame', (frame: StompFrame) => {
-            check(() => assert.deepEqual(frame, new StompFrame('SEND', { 'content-length': '11' }, 'hello\0world')), done);
-        });
+        frameLayer.emitter.on('frame', (frame: StompFrame) =>
+            check(() => assert.deepEqual(frame, new StompFrame('SEND', { 'content-length': '11' }, 'hello\0world')), done)
+        );
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:11\n\nhello\0world`));
     });
 
@@ -179,7 +173,7 @@ describe('STOMP Frame Layer', () => {
         streamLayer.emitter.emit('data', new Buffer(`SEND\ncontent-length:5\n\nhello\0SEND\ncontent-length:5\n\nworld\0SEND\ncontent-length:1\n\n!\0`));
     });
 
-    it(`should decode escaped characters correctly when receiving message`, (done) => {
+    it(`should decode escaped characters correctly when receiving frames`, (done) => {
         const frameText = 'SEND\ndestination:/queue/a\ncookie:key\\cvalue\n\ntest\\nmessage\0';
         const expectedFrame = new StompFrame('SEND', { 'destination': '/queue/a', cookie: 'key:value' }, `test\nmessage`);
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
