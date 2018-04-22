@@ -51,18 +51,20 @@ export class StompFrameLayer {
      */
     public async send(frame: StompFrame) {
         let data = frame.command + '\n';
+        let body = '';
         let headers = Object.keys(frame.headers).filter(this.headerFilter).sort();
         for (var key of headers) {
-            data += key + ':' + frame.headers[key] + '\n';
+            data += key + ':' + escape(frame.headers[key]) + '\n';
         }
         if (frame.body.length > 0) {
+            body = escape(frame.body);
             if (!frame.headers.hasOwnProperty('suppress-content-length')) {
-                data += 'content-length:' + Buffer.byteLength(frame.body) + '\n';
+                data += 'content-length:' + Buffer.byteLength(body) + '\n';
             }
         }
         data += '\n';
-        if (frame.body.length > 0) {
-            data += frame.body;
+        if (body.length > 0) {
+            data += body;
         }
         data += '\0';
         log.silly("StompFrameLayer: sending frame data %j", data);
@@ -282,6 +284,20 @@ function unescape(value: string): string {
             .replace(/\\c/g, ':')
             .replace(/\\\\/g, '\\')
             .replace(/\\r/g, '\r');
+    }
+    return value;
+}
+
+function escape(value: string): string {
+    if (value.match(/[\t\n\r\:\\]/g)) {
+        if (value.indexOf('\t') >= 0) {
+            throw new Error("Unsupported character detected.");
+        }
+        value = value
+            .replace(/\\/g, '\\\\')
+            .replace(/\n/g, '\\n')
+            .replace(/\:/g, '\\c')
+            .replace(/\r/g, '\\r');
     }
     return value;
 }
