@@ -57,7 +57,7 @@ export class StompFrameLayer {
             data += key + ':' + escape(frame.headers[key]) + '\n';
         }
         if (frame.body.length > 0) {
-            body = escape(frame.body);
+            body = frame.body;
             if (!frame.headers.hasOwnProperty('suppress-content-length')) {
                 data += 'content-length:' + Buffer.byteLength(body) + '\n';
             }

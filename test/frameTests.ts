@@ -189,13 +189,13 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should encode escape characters correctly when sending frames`, (done) => {
-        const frameText = 'SEND\ncookie:key\\cvalue\ndestination:/queue/a\ncontent-length:15\n\ntest\\nmessage\\\\\0';
+        const frameText = 'SEND\ncookie:key\\cvalue\ndestination:/queue/a\ncontent-length:13\n\ntest\nmessage\\\0';
         streamLayer.send = async (data) => check(() => assert.equal(data, frameText), done);
         frameLayer.send(new StompFrame('SEND', { 'destination': '/queue/a', cookie: 'key:value' }, `test\nmessage\\`));
     });
 
     it(`should throw error when sending an unsupported character`, (done) => {
-        frameLayer.send(new StompFrame('SEND', { 'destination': '/queue/a' }, `test\tmessage`))
+        frameLayer.send(new StompFrame('SEND', { 'destination': '/queue/a', 'key': 'test\tvalue' }, `test message`))
             .catch((error) => check(() => assert.equal(error.message, 'Unsupported character detected.'), done));
     });
 
