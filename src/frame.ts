@@ -192,7 +192,7 @@ export class StompFrameLayer {
     }
 
     private appendToBody(buffer: Buffer) {
-        this.frame.body += unescape(buffer.toString());
+        this.frame.body += buffer.toString();
     }
 
     private emitFrame() {

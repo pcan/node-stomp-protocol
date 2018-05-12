@@ -175,7 +175,7 @@ describe('STOMP Frame Layer', () => {
 
     it(`should decode escaped characters correctly when receiving frames`, (done) => {
         const frameText = 'SEND\ndestination:/queue/a\ncookie:key\\cvalue\n\ntest\\nmessage\0';
-        const expectedFrame = new StompFrame('SEND', { 'destination': '/queue/a', cookie: 'key:value' }, `test\nmessage`);
+        const expectedFrame = new StompFrame('SEND', { 'destination': '/queue/a', cookie: 'key:value' }, `test\\nmessage`);
         frameLayer.emitter.on('frame', (frame: StompFrame) => {
             check(() => assert.deepEqual(frame, expectedFrame), done);
         });
@@ -183,7 +183,7 @@ describe('STOMP Frame Layer', () => {
     });
 
     it(`should close stream when reading an unsupported escape sequence`, (done) => {
-        const frameText = 'SEND\ndestination:/queue/a\n\ntest\\tmessage\0';
+        const frameText = 'SEND\ndestination:/queue/a\nkey:some\\tvalue\n\ntest message\0';
         streamLayer.close = async () => done();
         streamLayer.emitter.emit('data', new Buffer(frameText));
     });
