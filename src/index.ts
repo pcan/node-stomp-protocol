@@ -4,10 +4,10 @@ import {
     StompServerSessionLayer, StompClientSessionLayer, StompSessionLayer,
     StompClientCommandListenerConstructor, StompServerCommandListenerConstructor
 } from './session';
+import { WebSocket } from './utils';
 import { StompFrameLayer } from './frame';
 import { StompConfig, StompHeaders, StompError } from './model';
 import { Socket } from 'net';
-import * as WebSocket from 'ws';
 export { StompServerSessionLayer, StompClientSessionLayer };
 export * from './protocol'
 export * from './model'

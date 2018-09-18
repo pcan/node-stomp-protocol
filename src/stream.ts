@@ -1,8 +1,8 @@
 import { StompFrame, StompEventEmitter } from './model';
-import { log } from './utils';
+import { log, WebSocket, WebSocketData } from './utils';
 import { EventEmitter } from 'events';
 import { Socket } from 'net';
-import * as WebSocket from 'ws';
+//import * as WebSocket from 'ws';
 
 export type StompStreamEvent = 'data' | 'end';
 
@@ -20,10 +20,21 @@ export function openStream(socket: Socket | WebSocket): StompStreamLayer {
     if (socket instanceof Socket) {
         return new StompSocketStreamLayer(socket);
     }
-    if (socket instanceof WebSocket) {
+    if (isWebSocket(socket)) {
         return new StompWebSocketStreamLayer(socket);
     }
     throw new Error('Unsupported socket type');
+}
+
+function isWebSocket(socket: any): socket is WebSocket {
+    return !!socket &&
+        typeof socket.on === "function" &&
+        typeof socket.send === "function" &&
+        typeof socket.close === "function" &&
+        socket.CLOSED === 3 &&
+        socket.CLOSING === 2 &&
+        socket.OPEN === 1 &&
+        socket.CONNECTING === 0;
 }
 
 class StompSocketStreamLayer implements StompStreamLayer {
@@ -92,7 +103,7 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
         this.webSocket.on('close', () => this.onWsEnd());
     }
 
-    private onWsMessage(data: WebSocket.Data) {
+    private onWsMessage(data: WebSocketData) {
         log.silly("StompWebSocketStreamLayer: received data %O", data);
         if (this.emitter) {
             this.emitter.emit('data', new Buffer(data.toString()));

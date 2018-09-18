@@ -48,3 +48,15 @@ class Logging implements StompProtocolLoggingListeners {
 }
 
 export const log = new Logging() as StompProtocolLoggingListeners;
+
+export interface WebSocket {
+
+    on(event: 'message', listener: (this: WebSocket, data: WebSocketData) => void): this;
+    on(event: 'error', listener: (this: WebSocket, err: Error) => void): this;
+    on(event: 'close', listener: (this: WebSocket, code: number, reason: string) => void): this;
+    close(code?: number, data?: string): void;
+    send(data: any, cb?: (err: Error) => void): void;
+
+}
+
+export type WebSocketData = string | Buffer | ArrayBuffer | Buffer[];

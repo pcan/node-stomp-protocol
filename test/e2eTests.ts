@@ -109,6 +109,12 @@ describe('STOMP Client & Server over WebSocket', () => {
         clientSession = createStompClientSession(clientSocket, serverListener);
     });
 
+    it(`should perform connection`, (done) => {
+        serverListener.connected = (headers) => done();
+        clientListener.connect = (headers) => serverSession.connected();
+        clientSession.connect();
+    });
+
     afterEach((done) => {
         clientSocket.close();
         server.close(done);
