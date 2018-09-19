@@ -8,7 +8,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepare": "tsc",
+    "prepare": "tsc --sourcemap false --inlinesourcemap false",
     "test": "nyc mocha"
   },
   "keywords": [

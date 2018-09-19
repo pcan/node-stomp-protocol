@@ -2,3 +2,5 @@ src
 test
 coverage
 .nyc_output
+tsconfig.json
+ISSUE_TEMPLATE.md
