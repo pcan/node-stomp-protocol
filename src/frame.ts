@@ -1,6 +1,5 @@
 import { StompFrame, StompEventEmitter, StompError, StompConfig } from "./model";
 import { StompStreamLayer } from "./stream";
-import { EventEmitter } from "events";
 import { log } from './utils';
 
 enum StompFrameStatus {
@@ -225,9 +224,9 @@ export class StompFrameLayer {
 
     /**
      * Pops a new line from the stream
-     * @return {string} the new line available
+     * @return {Buffer} the new line available
      */
-    private popLine() {
+    private popLine(): Buffer {
         const now = Date.now();
         if (now - this.lastNewlineTime > this.newlineFloodingResetTime) {
             this.newlineCounter = 0;
@@ -246,7 +245,7 @@ export class StompFrameLayer {
      * Check if there is a new line in the current stream chunk
      * @return {boolean}
      */
-    private hasLine() {
+    private hasLine(): boolean {
         return (this.buffer.indexOf('\n') > -1);
     }
 

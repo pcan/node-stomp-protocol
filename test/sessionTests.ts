@@ -1,5 +1,5 @@
 import 'mocha';
-import { assert, should, expect } from 'chai';
+import { assert, expect } from 'chai';
 import { StompFrame, StompEventEmitter, StompHeaders, StompError } from '../src/model';
 import { StompFrameLayer } from '../src/frame';
 import { StompServerSessionLayer, StompClientSessionLayer } from '../src/session';

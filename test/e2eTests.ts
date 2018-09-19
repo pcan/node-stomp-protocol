@@ -1,14 +1,10 @@
 import 'mocha';
-import { assert, should, expect } from 'chai';
-import { StompFrame, StompEventEmitter, StompError } from '../src/model';
 import { StompServerSessionLayer, StompClientSessionLayer } from '../src/session';
 import {
-    StompClientCommandListener, StompServerCommandListener,
-    StompServerCommands, StompClientCommands
+    StompClientCommandListener, StompServerCommandListener
 } from '../src/protocol'
-
 import { createStompServerSession, createStompClientSession } from '../src/index';
-import { check, countdownLatch, noopFn, noopAsyncFn } from './helpers';
+import {  countdownLatch, noopFn, noopAsyncFn } from './helpers';
 import { createServer, Server, createConnection, Socket } from 'net';
 import * as WebSocket from 'ws';
 

@@ -1,8 +1,6 @@
-import { StompFrame, StompEventEmitter } from './model';
-import { log, WebSocket, WebSocketData } from './utils';
-import { EventEmitter } from 'events';
+import { StompEventEmitter } from './model';
+import { log, WebSocket, WebSocketMessageHandler } from './utils';
 import { Socket } from 'net';
-//import * as WebSocket from 'ws';
 
 export type StompStreamEvent = 'data' | 'end';
 
@@ -95,26 +93,36 @@ class StompSocketStreamLayer implements StompStreamLayer {
 class StompWebSocketStreamLayer implements StompStreamLayer {
 
     public emitter = new StompEventEmitter();
+    private readonly messageListener: WebSocketMessageHandler = (event) => this.onWsMessage(event.data);
+    private readonly errorListener = (event: any) => this.onWsEnd(event);
+    private readonly closeListener = (code?: number) => this.onWsEnd({ code });
 
     constructor(private readonly webSocket: WebSocket) {
         log.debug("StompWebSocketStreamLayer: new connection");
-        this.webSocket.on('message', (data) => this.onWsMessage(data));
-        this.webSocket.on('error', (err) => this.onWsEnd(err));
-        this.webSocket.on('close', () => this.onWsEnd());
+        this.webSocket.addEventListener('message', this.messageListener);
+        this.webSocket.addEventListener('error', this.errorListener);
+        this.webSocket.addEventListener('close', this.closeListener);
     }
 
-    private onWsMessage(data: WebSocketData) {
+    private onWsMessage(data: any) {
         log.silly("StompWebSocketStreamLayer: received data %O", data);
         if (this.emitter) {
             this.emitter.emit('data', new Buffer(data.toString()));
         }
     }
 
-    private onWsEnd(err?: Error) {
+    private removeListeners() {
+        this.webSocket.removeEventListener('message', this.messageListener);
+        this.webSocket.removeEventListener('error', this.errorListener);
+        this.webSocket.removeEventListener('close', this.closeListener);
+    }
+
+    private onWsEnd(event: any) {
         try {
-            log.debug("StompWebSocketStreamLayer: WebSocket closed due to error %O", err);
+            this.removeListeners();
+            log.debug("StompWebSocketStreamLayer: WebSocket closed %O", event);
             if (this.emitter) {
-                this.emitter.emit('end', err);
+                this.emitter.emit('end', event);
             }
         } finally {
             this.webSocket.close();
@@ -139,6 +147,7 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
         log.debug("StompWebSocketStreamLayer: closing");
         return new Promise((resolve, reject) => {
             try {
+                this.removeListeners();
                 this.webSocket.close();
             } catch (err) {
                 log.debug("StompWebSocketStreamLayer: error while closing %O", err);

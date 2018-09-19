@@ -1,12 +1,12 @@
 import { openStream } from './stream';
-import { StompServerCommandListener, StompClientCommandListener, StompServerCommands, StompClientCommands } from './protocol';
+import { StompServerCommandListener, StompClientCommandListener } from './protocol';
 import {
-    StompServerSessionLayer, StompClientSessionLayer, StompSessionLayer,
+    StompServerSessionLayer, StompClientSessionLayer,
     StompClientCommandListenerConstructor, StompServerCommandListenerConstructor
 } from './session';
 import { WebSocket } from './utils';
 import { StompFrameLayer } from './frame';
-import { StompConfig, StompHeaders, StompError } from './model';
+import { StompConfig } from './model';
 import { Socket } from 'net';
 export { StompServerSessionLayer, StompClientSessionLayer };
 export * from './protocol'

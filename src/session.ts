@@ -2,11 +2,11 @@ import { StompFrame, StompHeaders, StompError, StompSessionData } from './model'
 import { StompFrameLayer } from './frame';
 import {
     StompCommandListener, StompClientCommandListener, StompServerCommandListener,
-    StompCommand, StompCommands, StompServerCommands, StompClientCommands,
-    StompProtocolHandler, StompProtocolHandlerV10, StompProtocolHandlerV11, StompProtocolHandlerV12
+    StompCommand, StompCommands, StompProtocolHandlerV10, StompProtocolHandlerV11,
+    StompProtocolHandlerV12
 } from './protocol';
-import { StompValidator, StompValidationResult } from './validators';
-import { log, promiseRejectionHandler } from './utils';
+import { StompValidationResult } from './validators';
+import { log } from './utils';
 
 export interface StompSession<L extends StompCommandListener> {
     readonly listener: L;
