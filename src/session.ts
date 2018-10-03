@@ -116,9 +116,6 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
                     this.switchProtocol(acceptVersion);
                 }
                 super.handleFrame(command, frame);
-                if (receipt) {
-                    this.receipt({ 'receipt-id': receipt }).catch(this.internalErrorHandler);
-                }
             } catch (error) {
                 const headers: StompHeaders = { message: error.message };
                 if (receipt) {
