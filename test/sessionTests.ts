@@ -119,16 +119,6 @@ describe('STOMP Server Session Layer', () => {
         frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
     });
 
-    it(`should send receipt-id when incoming message includes recepit header`, (done) => {
-        sessionLayer.data.authenticated = true;
-        clientListener.send = noopFn;
-        frameLayer.send = async (frame) => {
-            check(() => expect(frame)
-                .to.deep.include({ command: 'RECEIPT', headers: { 'receipt-id': '123' } }), done);
-        };
-        frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test', 'receipt': '123' }, 'test message'));
-    });
-
     it(`should handle protocol error`, (done) => {
         sessionLayer.data.authenticated = true;
         const error = new StompError('generic error');

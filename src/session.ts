@@ -70,7 +70,6 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
 
     private onEnd() {
         log.debug("StompFrameLayer: end event");
-        delete this.data.subscriptions;
         this.listener.onEnd();
     }
 
@@ -107,7 +106,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     protected handleFrame(command: StompCommand<StompClientCommandListener>, frame: StompFrame) {
-        const receipt = frame.command !== 'CONNECT' && frame.headers && frame.headers.receipt;
+        const receipt = frame.command !== 'CONNECT' && frame.headers && frame.headers.receipt || undefined;
         const acceptVersion = frame.command === 'CONNECT' && frame.headers && frame.headers['accept-version'];
         if (this.data.authenticated || frame.command === 'CONNECT') {
             try {
@@ -116,9 +115,6 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
                     this.switchProtocol(acceptVersion);
                 }
                 super.handleFrame(command, frame);
-                if (receipt) {
-                    this.receipt({ 'receipt-id': receipt }).catch(this.internalErrorHandler);
-                }
             } catch (error) {
                 const headers: StompHeaders = { message: error.message };
                 if (receipt) {

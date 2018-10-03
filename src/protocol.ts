@@ -78,7 +78,6 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
             handle(frame: StompFrame, session: ServerSession) {
                 session.listener.subscribe(frame.headers);
                 const destination = getDestinationKey(frame.headers);
-                session.data.subscriptions[destination] = true;
                 log.debug("StompProtocolHandler: session %s subscribed to destination %s", session.data.id, destination);
             }
         },
@@ -86,10 +85,6 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
             validators: [requireOneHeader('destination', 'id')],
             handle(frame: StompFrame, session: ServerSession) {
                 const destination = getDestinationKey(frame.headers);
-                if (!session.data.subscriptions[destination]) {
-                    throw new StompError(`Subscription not found for destination '${destination}'`);
-                }
-                delete session.data.subscriptions[destination];
                 session.listener.unsubscribe(frame.headers);
                 log.debug("StompProtocolHandler: session %s unsubscribed from destination %s", session.data.id, destination);
             }
@@ -99,7 +94,6 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
             handle(frame: StompFrame, session: ServerSession) {
                 const transaction = frame.headers && frame.headers.transaction;
                 session.listener.begin(frame.headers);
-                session.data.transactions[transaction] = true;
                 log.silly("StompProtocolHandler: session %s begin transaction %s", session.data.id, transaction);
             }
         },
@@ -107,10 +101,6 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
             validators: [requireHeader('transaction')],
             handle(frame: StompFrame, session: ServerSession) {
                 const transaction = frame.headers && frame.headers.transaction;
-                if (!session.data.transactions[transaction]) {
-                    throw new StompError(`Transaction not found '${transaction}'`);
-                }
-                delete session.data.transactions[transaction];
                 session.listener.commit(frame.headers);
                 log.silly("StompProtocolHandler: session %s committed transaction %s", session.data.id, transaction);
             }
@@ -119,10 +109,6 @@ export const StompProtocolHandlerV10: StompProtocolHandler = {
             validators: [requireHeader('transaction')],
             handle(frame: StompFrame, session: ServerSession) {
                 const transaction = frame.headers && frame.headers.transaction;
-                if (!session.data.transactions[transaction]) {
-                    throw new StompError(`Transaction not found '${transaction}'`);
-                }
-                delete session.data.transactions[transaction];
                 session.listener.abort(frame.headers);
                 log.silly("StompProtocolHandler: session %s aborted transaction %s", session.data.id, transaction);
             }
@@ -258,10 +244,10 @@ export const StompProtocolHandlerV12: StompProtocolHandler = {
 
 function getDestinationKey(headers: StompHeaders) {
     if (headers.id) {
-        return 'id-' + headers.id;
+        return 'id:' + headers.id;
     }
     if (headers.destination) {
-        return 'dest-' + headers.destination;
+        return 'dest:' + headers.destination;
     }
     throw new StompError('You must specify destination or id header.');
 }
