@@ -15,14 +15,14 @@ export { setLoggingListeners, LoggerFunction, StompProtocolLoggingListeners } fr
 
 export function createStompServerSession(socket: Socket | WebSocket, listener: StompClientCommandListenerConstructor | StompClientCommandListener, config?: StompConfig): StompServerSessionLayer {
     const streamLayer = openStream(socket);
-    const frameLayer = new StompFrameLayer(streamLayer);
+    const frameLayer = new StompFrameLayer(streamLayer, config);
     frameLayer.headerFilter = config && config.headersFilter || frameLayer.headerFilter;
     return new StompServerSessionLayer(frameLayer, listener);
 }
 
 export function createStompClientSession(socket: Socket | WebSocket, listener: StompServerCommandListenerConstructor | StompServerCommandListener, config?: StompConfig): StompClientSessionLayer {
     const streamLayer = openStream(socket);
-    const frameLayer = new StompFrameLayer(streamLayer);
+    const frameLayer = new StompFrameLayer(streamLayer, config);
     frameLayer.headerFilter = config && config.headersFilter || frameLayer.headerFilter;
     return new StompClientSessionLayer(frameLayer, listener);
 }

@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { IHeartbeatOptions } from "./heartbeat";
 
 export type StompHeaders = { [key: string]: string };
 
@@ -6,6 +7,7 @@ export interface StompConfig {
     connectTimeout?: number;
     newlineFloodingResetTime?: number;
     headersFilter?: (headerName: string) => boolean;
+    heartbeat?: IHeartbeatOptions;
 }
 
 export class StompSessionData {
