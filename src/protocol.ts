@@ -5,30 +5,30 @@ import { log } from './utils';
 
 export interface StompServerCommands {
 
-    connected(headers?: StompHeaders): void;
+    connected(headers: StompHeaders): void;
 
-    message(headers?: StompHeaders, body?: string): void;
-    receipt(headers?: StompHeaders): void;
-    error(headers?: StompHeaders, body?: string): void;
+    message(headers: StompHeaders, body?: string): void;
+    receipt(headers: StompHeaders): void;
+    error(headers: StompHeaders, body?: string): void;
 
 }
 
 export interface StompClientCommands {
-    connect(headers?: StompHeaders): void;
+    connect(headers: StompHeaders): void;
 
-    send(headers?: StompHeaders, body?: string): void;
+    send(headers: StompHeaders, body?: string): void;
 
-    subscribe(headers?: StompHeaders): void;
-    unsubscribe(headers?: StompHeaders): void;
+    subscribe(headers: StompHeaders): void;
+    unsubscribe(headers: StompHeaders): void;
 
-    begin(headers?: StompHeaders): void;
-    commit(headers?: StompHeaders): void;
-    abort(headers?: StompHeaders): void;
+    begin(headers: StompHeaders): void;
+    commit(headers: StompHeaders): void;
+    abort(headers: StompHeaders): void;
 
-    ack(headers?: StompHeaders): void;
-    nack(headers?: StompHeaders): void;
+    ack(headers: StompHeaders): void;
+    nack(headers: StompHeaders): void;
 
-    disconnect(headers?: StompHeaders): void;
+    disconnect(headers: StompHeaders): void;
 }
 
 export interface StompCommandListener {

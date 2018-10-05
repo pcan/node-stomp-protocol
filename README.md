@@ -29,16 +29,16 @@ import { StompHeaders, StompError, StompServerCommandListener, createStompClient
 import { Socket, createConnection } from 'net';
 
 const listener: StompServerCommandListener = { // 1) define a listener for server-sent frames.
-    connected(headers?: StompHeaders) {
+    connected(headers: StompHeaders) {
         console.log('Connected!', headers);
     },
-    message(headers?: StompHeaders, body?: string) {
+    message(headers: StompHeaders, body?: string) {
         console.log('Message!', body, headers);
     },
-    receipt(headers?: StompHeaders) {
+    receipt(headers: StompHeaders) {
         console.log('Receipt!', headers);
     },
-    error(headers?: StompHeaders, body?: string) {
+    error(headers: StompHeaders, body?: string) {
         console.log('Error!', headers, body);
     },
     onProtocolError(error: StompError) {
@@ -81,7 +81,7 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
 
     const listener: StompClientCommandListener = { // 2) define a listener for client-sent frames.
 
-        connect(headers?: StompHeaders) {
+        connect(headers: StompHeaders) {
             console.log('Connect!', headers);
             if (headers && headers.login === 'user' && headers.passcode === 'pass') {
                 server.connected({ version: '1.2', server: 'MyServer/1.8.2' }).catch(console.error);
@@ -89,31 +89,31 @@ function testServer(socket: Socket) { // 1) create a listener for incoming raw T
                 server.error({ message: 'Invalid login data' }, 'Invalid login data').catch(console.error);
             }
         },
-        send(headers?: StompHeaders, body?: string) {
+        send(headers: StompHeaders, body?: string) {
             console.log('Send!', body, headers);
         },
-        subscribe(headers?: StompHeaders) {
+        subscribe(headers: StompHeaders) {
             console.log('subscription done to ' + (headers && headers.destination));
         },
-        unsubscribe(headers?: StompHeaders) {
+        unsubscribe(headers: StompHeaders) {
             console.log('unsubscribe', headers);
         },
-        begin(headers?: StompHeaders) {
+        begin(headers: StompHeaders) {
             console.log('begin', headers);
         },
-        commit(headers?: StompHeaders) {
+        commit(headers: StompHeaders) {
             console.log('commit', headers);
         },
-        abort(headers?: StompHeaders) {
+        abort(headers: StompHeaders) {
             console.log('abort', headers);
         },
-        ack(headers?: StompHeaders) {
+        ack(headers: StompHeaders) {
             console.log('ack', headers);
         },
-        nack(headers?: StompHeaders) {
+        nack(headers: StompHeaders) {
             console.log('nack', headers);
         },
-        disconnect(headers?: StompHeaders) {
+        disconnect(headers: StompHeaders) {
             console.log('Disconnect!', headers);
         },
         onProtocolError(error: StompError) {
