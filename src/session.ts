@@ -140,19 +140,19 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
         this.error({ message: error.message }, error.details).catch(this.internalErrorHandler);
     }
 
-    public async connected(headers?: StompHeaders) {
+    public async connected(headers: StompHeaders) {
         log.debug("StompServerSessionLayer: sending CONNECTED frame %j", headers);
         this.data.authenticated = true;
         Object.assign(headers || {}, { version: this.protocol.version });
         await this.sendFrame(new StompFrame('CONNECTED', headers));
     }
 
-    public async message(headers?: StompHeaders, body?: string) {
+    public async message(headers: StompHeaders, body?: string) {
         log.silly("StompServerSessionLayer: sending MESSAGE frame %j %s", headers, body);
         await this.sendFrame(new StompFrame('MESSAGE', headers, body));
     }
 
-    public async receipt(headers?: StompHeaders) {
+    public async receipt(headers: StompHeaders) {
         log.silly("StompServerSessionLayer: sending RECEIPT frame %j", headers);
         await this.sendFrame(new StompFrame('RECEIPT', headers));
     }
@@ -198,48 +198,48 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         }
     }
 
-    public async connect(headers?: StompHeaders): Promise<void> {
+    public async connect(headers: StompHeaders): Promise<void> {
         log.debug("StompClientSessionLayer: sending CONNECT frame %j", headers);
         Object.assign(headers || {}, { 'accept-version': '1.0,1.1,1.2' });
         await this.sendFrame(new StompFrame('CONNECT', headers));
     }
 
-    public async send(headers?: StompHeaders, body?: string): Promise<void> {
+    public async send(headers: StompHeaders, body?: string): Promise<void> {
         log.silly("StompClientSessionLayer: sending SEND frame %j %s", headers, body);
         await this.sendFrame(new StompFrame('SEND', headers, body));
     }
 
-    public async subscribe(headers?: StompHeaders): Promise<void> {
+    public async subscribe(headers: StompHeaders): Promise<void> {
         log.debug("StompClientSessionLayer: sending SUBSCRIBE frame %j", headers);
         await this.sendFrame(new StompFrame('SUBSCRIBE', headers));
     }
 
-    public async unsubscribe(headers?: StompHeaders): Promise<void> {
+    public async unsubscribe(headers: StompHeaders): Promise<void> {
         log.debug("StompClientSessionLayer: sending UNSUBSCRIBE frame %j", headers);
         await this.sendFrame(new StompFrame('UNSUBSCRIBE', headers));
     }
 
-    public async begin(headers?: StompHeaders): Promise<void> {
+    public async begin(headers: StompHeaders): Promise<void> {
         log.silly("StompClientSessionLayer: sending BEGIN frame %j", headers);
         await this.sendFrame(new StompFrame('BEGIN', headers));
     }
 
-    public async commit(headers?: StompHeaders): Promise<void> {
+    public async commit(headers: StompHeaders): Promise<void> {
         log.silly("StompClientSessionLayer: sending COMMIT frame %j", headers);
         await this.sendFrame(new StompFrame('COMMIT', headers));
     }
 
-    public async abort(headers?: StompHeaders): Promise<void> {
+    public async abort(headers: StompHeaders): Promise<void> {
         log.silly("StompClientSessionLayer: sending ABORT frame %j", headers);
         await this.sendFrame(new StompFrame('ABORT', headers));
     }
 
-    public async ack(headers?: StompHeaders): Promise<void> {
+    public async ack(headers: StompHeaders): Promise<void> {
         log.silly("StompClientSessionLayer: sending ACK frame %j", headers);
         await this.sendFrame(new StompFrame('ACK', headers));
     }
 
-    public async nack(headers?: StompHeaders): Promise<void> {
+    public async nack(headers: StompHeaders): Promise<void> {
         log.silly("StompClientSessionLayer: sending NACK frame %j", headers);
         await this.sendFrame(new StompFrame('NACK', headers));
     }

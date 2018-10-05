@@ -41,16 +41,16 @@ describe('STOMP Client & Server over Plain Socket', () => {
 
     it(`should perform connection`, (done) => {
         serverListener.connected = (headers) => done();
-        clientListener.connect = (headers) => serverSession.connected();
-        clientSession.connect();
+        clientListener.connect = (headers) => serverSession.connected({});
+        clientSession.connect({});
     });
 
     it(`should perform disconnection`, (done) => {
         serverListener.onEnd = done;
         clientListener.disconnect = (headers) => serverSession.close();
         serverListener.connected = (headers) => clientSession.disconnect();
-        clientListener.connect = (headers) => serverSession.connected();
-        clientSession.connect();
+        clientListener.connect = (headers) => serverSession.connected({});
+        clientSession.connect({});
     });
 
     it(`should handle client-side socket end`, (done) => {
@@ -61,8 +61,8 @@ describe('STOMP Client & Server over Plain Socket', () => {
     it(`should handle server-side socket end`, (done) => {
         serverListener.connected = noopAsyncFn;
         serverListener.onEnd = done;
-        clientListener.connect = (headers) => serverSession.connected();
-        clientSession.connect().then(() => clientSession.close());
+        clientListener.connect = (headers) => serverSession.connected({});
+        clientSession.connect({}).then(() => clientSession.close());
     });
 
     it(`should disconnect client after error`, (done) => {
@@ -107,8 +107,8 @@ describe('STOMP Client & Server over WebSocket', () => {
 
     it(`should perform connection`, (done) => {
         serverListener.connected = (headers) => done();
-        clientListener.connect = (headers) => serverSession.connected();
-        clientSession.connect();
+        clientListener.connect = (headers) => serverSession.connected({});
+        clientSession.connect({});
     });
 
     afterEach((done) => {
