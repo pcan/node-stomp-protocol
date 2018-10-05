@@ -17,14 +17,12 @@ export interface StompBrokerListener<S extends GenericSocket> {
 
     connecting(sessionId: string, headers: StompHeaders, done: (err?: StompError) => void): void;
 
-    incomingMessage(sessionId: string, headers: StompHeaders | undefined, body: string | undefined, done: (err?: StompError) => void): void;
-
+    incomingMessage(sessionId: string, headers: StompHeaders, body: string | undefined, done: (err?: StompError) => void): void;
 
 }
 
 
-
-export class StompBrokerLayer<S extends GenericSocket> {
+export class StompBrokerLayer<S extends GenericSocket> { //TODO: interface and factory method
 
     private readonly nextSessionId = counter(); //TODO: let the user choice the ID generation strategy.
 
@@ -47,6 +45,7 @@ export class StompBrokerLayer<S extends GenericSocket> {
 
             const clientListener = new BrokerClientCommandListener(this, sessionId);
             const session = new StompServerSessionLayer(frameLayer, clientListener);
+            clientListener.session = session;
 
             session.internalErrorHandler = (err) => this.listener.sessionError(sessionId, err);
 
@@ -58,74 +57,81 @@ export class StompBrokerLayer<S extends GenericSocket> {
 }
 
 
-
-
-const emptyHeaders = Object.seal({});
-
 class BrokerClientCommandListener<S extends GenericSocket> implements StompClientCommandListener {
+
+    session!: StompServerSessionLayer; // Server-side session for a connected client
 
     constructor(private readonly broker: StompBrokerLayer<S>, private readonly sessionId: string) { }
 
-    get session() { return this.broker.sessions.get(this.sessionId)! };
-
-    connect(headers?: StompHeaders): void {
-        this.broker.listener.connecting(this.sessionId, headers || emptyHeaders, (err) => this.connectCallback(err));
+    connect(headers: StompHeaders): void {
+        this.broker.listener.connecting(this.sessionId, headers, (err) => this.connectCallback(err));
     }
 
     private connectCallback(err?: StompError) {
         const session = this.session;
         if (err) {
             log.debug("StompBrokerLayer: error while connecting session %s: %O", session.data.id, err);
-            session.error({ message: err.message }, err.details)
-                .catch(session.internalErrorHandler);
+            this.sendErrorFrame(err);
         } else {
             session.connected({ version: session.protocolVersion, server: 'StompBroker/1.0.0' })  //TODO: configure broker name
                 .catch(session.internalErrorHandler);
         }
     }
 
+    private sendErrorFrame(err: StompError, headers?: StompHeaders) {
+        headers = headers || {};
+        headers.message = err.message;
+        this.session.error(headers, err.details).catch(this.session.internalErrorHandler);
+    }
 
-    send(headers?: StompHeaders, body?: string): void {
-        const session = this.session;
-        this.broker.listener.incomingMessage(this.sessionId, headers, body, (err) => this.receiptHandler(err));
+    send(headers: StompHeaders, body?: string): void {
+        this.broker.listener.incomingMessage(this.sessionId, headers, body, this.createReceiptHandler(headers));
+    }
+
+    private createReceiptHandler(headers: StompHeaders) {
+        const receipt = typeof headers.receipt === 'string' ? headers.receipt : undefined;
+        return (err?: StompError) => this.receiptHandler(err, receipt);
+    }
+
+    private receiptHandler(err?: StompError, receipt?: string) {
+        if (err) {
+            this.sendErrorFrame(err, receipt ? { 'receipt-id': receipt } : undefined);
+        } else if (receipt) {
+            this.session.receipt({ 'receipt-id': receipt });
+        }
+    }
+
+    subscribe(headers: StompHeaders): void {
 
     }
 
-    private receiptHandler(err?: StompError) {
+    unsubscribe(headers: StompHeaders): void {
 
     }
 
-    subscribe(headers?: StompHeaders): void {
+    begin(headers: StompHeaders): void {
 
     }
 
-    unsubscribe(headers?: StompHeaders): void {
+    commit(headers: StompHeaders): void {
 
     }
 
-    begin(headers?: StompHeaders): void {
-
-    }
-
-    commit(headers?: StompHeaders): void {
-
-    }
-
-    abort(headers?: StompHeaders): void {
+    abort(headers: StompHeaders): void {
 
     }
 
 
-    ack(headers?: StompHeaders): void {
+    ack(headers: StompHeaders): void {
 
     }
 
-    nack(headers?: StompHeaders): void {
+    nack(headers: StompHeaders): void {
 
     }
 
-    disconnect(headers?: StompHeaders): void {
-
+    disconnect(headers: StompHeaders): void {
+        //TODO: handle receipt
     }
 
     onProtocolError(error: StompError): void {
