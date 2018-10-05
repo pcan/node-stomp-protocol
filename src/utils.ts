@@ -1,3 +1,5 @@
+import { Socket } from "net";
+
 export type LoggerFunction = (message: string, ...args: any[]) => any;
 
 export interface StompProtocolLoggingListeners {
@@ -21,7 +23,11 @@ export function setLoggingListeners(listeners: StompProtocolLoggingListeners) {
     loggingListeners = listeners;
 }
 
-function noop(){ }
+export type GenericSocket = Socket | WebSocket;
+
+export const counter = (i = 0) => () => (i++).toString();
+
+function noop() { }
 
 class Logging implements StompProtocolLoggingListeners {
 

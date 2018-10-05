@@ -25,7 +25,7 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
 
     protected abstract get inboundCommands(): StompCommands<L>;
     readonly data = new StompSessionData();
-    public internalErrorHandler = (e: Error) => log.warn("StompSessionLayer: internal error %O", e);
+
     public readonly listener: L;
 
     constructor(public readonly frameLayer: StompFrameLayer, listener: L | (new (session: any) => L)) {
@@ -84,17 +84,17 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
         return (command && command.length < 20 && this.inboundCommands[command]);
     }
 
-}
+    public internalErrorHandler(e: Error) {
+        log.warn("StompSessionLayer: internal session error for %O", e);
+    }
 
-interface MessageHeaders extends StompHeaders {
-    destination: string;
-    'message-id': string;
-    subscription: string;
 }
 
 export class StompServerSessionLayer extends StompSessionLayer<StompClientCommandListener> {
 
     private protocol = StompProtocolHandlerV10;
+
+    get protocolVersion() { return this.protocol.version; };
 
     protected get inboundCommands() {
         return this.protocol.client;
@@ -102,7 +102,6 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
 
     constructor(frameLayer: StompFrameLayer, listener: StompCommandListenerConstructor<StompServerSessionLayer, StompClientCommandListener> | StompClientCommandListener) {
         super(frameLayer, listener);
-        const a = this as StompSessionLayer<StompClientCommandListener>;
     }
 
     protected handleFrame(command: StompCommand<StompClientCommandListener>, frame: StompFrame) {

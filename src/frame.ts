@@ -25,7 +25,7 @@ export class StompFrameLayer {
     private lastNewlineTime = 0;
     private newlineCounter = 0;
     private connectTimeout?: NodeJS.Timer;
-    public headerFilter = (headerName: string) => true;
+    public headerFilter = (_headerName: string) => true;
 
     constructor(private readonly stream: StompStreamLayer, options?: StompConfig) {
         stream.emitter.on('data', (data: Buffer) => this.onData(data));
