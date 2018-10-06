@@ -127,11 +127,11 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     private switchProtocol(acceptVersion: string) {
-        if (acceptVersion.indexOf('1.2') >= 0) {
+        if (acceptVersion.indexOf(StompProtocolHandlerV12.version) >= 0) {
             this.protocol = StompProtocolHandlerV12;
-        } else if (acceptVersion.indexOf('1.1') >= 0) {
+        } else if (acceptVersion.indexOf(StompProtocolHandlerV11.version) >= 0) {
             this.protocol = StompProtocolHandlerV11;
-        } else if (acceptVersion.indexOf('1.0') < 0) {
+        } else if (acceptVersion.indexOf(StompProtocolHandlerV10.version) < 0) {
             throw new Error('Supported protocol versions are: 1.0, 1.1, 1.2')
         }
     }
@@ -184,10 +184,10 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
     protected handleFrame(command: StompCommand<StompServerCommandListener>, frame: StompFrame) {
         if (frame.command === 'CONNECTED') {
             log.debug("StompClientSessionLayer: received CONNECTED frame %j", frame.headers);
-            if (frame.headers.version === '1.1') {
+            if (frame.headers.version === StompProtocolHandlerV11.version) {
                 this.protocol = StompProtocolHandlerV11;
             }
-            if (frame.headers.version === '1.2') {
+            if (frame.headers.version === StompProtocolHandlerV12.version) {
                 this.protocol = StompProtocolHandlerV12;
             }
         }
