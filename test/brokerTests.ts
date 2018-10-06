@@ -4,7 +4,7 @@ import {
     StompServerCommandListener
 } from '../src/protocol'
 import { createStompClientSession, StompError } from '../src/index';
-import { countdownLatch, noopFn, noopAsyncFn, check } from './helpers';
+import { countdownLatch, noopFn, check } from './helpers';
 import { StompBrokerLayer, StompBrokerListener } from '../src/broker';
 import { createServer, Server, createConnection, Socket } from 'net';
 import { assert, expect } from 'chai';
@@ -76,7 +76,7 @@ describe('STOMP Broker Layer', () => {
         const destination = '/queue/abc';
         serverListener.connected = () => clientSession.send({ destination, receipt }, 'test message');
         brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, headers, body, cb) => cb();
+        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb();
         serverListener.receipt = (headers) =>
             check(() => assert.equal(headers['receipt-id'], receipt), done);
         clientSession.connect({});
@@ -87,7 +87,7 @@ describe('STOMP Broker Layer', () => {
         const message = 'Error message';
         serverListener.connected = () => clientSession.send({ destination }, 'test message');
         brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, headers, body, cb) => cb(new StompError(message));
+        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb(new StompError(message));
         serverListener.error = (headers) =>
             check(() => assert.equal(message, headers.message), done);
         clientSession.connect({});
@@ -98,7 +98,7 @@ describe('STOMP Broker Layer', () => {
         const destination = '/queue/abc';
         serverListener.connected = () => clientSession.send({ destination, receipt }, 'test message');
         brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, headers, body, cb) => cb(new StompError());
+        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb(new StompError());
         serverListener.error = (headers) =>
             check(() => assert.equal(headers['receipt-id'], receipt), done);
         clientSession.connect({});
@@ -187,7 +187,6 @@ describe('STOMP Broker Layer', () => {
 
     it(`should subscribe and unsubscribe without ID using legacy protocol`, (done) => {
         const destination = '/queue/abc';
-        const subscription = { destination, ack: 'auto' }
         serverListener.connected = () => {
             clientSession.subscribe({ destination })
                 .then(() => clientSession.unsubscribe({ destination }));
@@ -198,7 +197,33 @@ describe('STOMP Broker Layer', () => {
             cb();
             check(() => expect(broker.subscriptions.get(_sessionId, sub.id)).to.be.undefined, done);
         };
-        clientSession.connect({ 'accept-version': '1.0'});
+        clientSession.connect({ 'accept-version': '1.0' });
+    });
+
+    it(`should handle positive acknowledge`, (done) => {
+        const id = 'msg-001';
+        const ack = { messageId: id, value: true };
+        serverListener.connected = () => clientSession.ack({ id });
+        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.acknowledging = (_sessionId, _acknowledge, cb) => {
+            cb();
+            check(() => assert.deepEqual(ack, _acknowledge), done);
+        };
+        clientSession.connect({});
+    });
+
+    it(`should handle negative acknowledge`, (done) => {
+        const id = 'msg-001';
+        const transaction = 't-001';
+        const subscription = 'sub-001';
+        const ack = { messageId: id, value: false, transaction, subscription };
+        serverListener.connected = () => clientSession.nack({ id, transaction, subscription });
+        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.acknowledging = (_sessionId, _acknowledge, cb) => {
+            cb();
+            check(() => assert.deepEqual(ack, _acknowledge), done);
+        };
+        clientSession.connect({});
     });
 
 });

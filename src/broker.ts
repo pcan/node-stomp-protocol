@@ -21,6 +21,8 @@ export interface StompBrokerListener {
 
     unsubscribing(sessionId: string, subscription: Subscription, done: (err?: StompError) => void): void;
 
+    acknowledging(sessionId: string, acknowledge: Acknowledge, done: (err?: StompError) => void): void;
+
 }
 
 export interface StompBrokerCommands {
@@ -180,13 +182,27 @@ class BrokerClientCommandListener implements StompClientCommandListener {
 
     }
 
-
     ack(headers: StompHeaders): void {
-
+        this.acknowledge(true, headers);
     }
 
     nack(headers: StompHeaders): void {
+        this.acknowledge(false, headers);
+    }
 
+    private acknowledge(value: boolean, headers: StompHeaders): void {
+        const ack: Acknowledge = {
+            value,
+            messageId: headers.id || headers.messageId
+        }
+        if (headers.transaction) {
+            ack.transaction = headers.transaction;
+        }
+        if (headers.subscription) {
+            ack.subscription = headers.subscription;
+        }
+        const callback = (err?: StompError) => this.receiptCallback(headers, err);
+        this.broker.listener.acknowledging(this.sessionId, ack, callback);
     }
 
     disconnect(headers: StompHeaders): void {
@@ -201,6 +217,13 @@ class BrokerClientCommandListener implements StompClientCommandListener {
 
 
 
+}
+
+export interface Acknowledge {
+    value: boolean;
+    messageId: string;
+    subscription?: string;
+    transaction?: string;
 }
 
 interface Subscription {
