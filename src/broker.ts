@@ -80,7 +80,7 @@ class BrokerClientCommandListener implements StompClientCommandListener {
 
     session!: StompServerSessionLayer; // Server-side session for a connected client
 
-    private readonly nextSubscriptionId = () => 'sub_' + counter();  //TODO: let the user choice the Subscription ID generation strategy.
+    private readonly nextSubscriptionId = counter();  //TODO: let the user choice the Subscription ID generation strategy.
 
     constructor(private readonly broker: StompBrokerLayer, private readonly sessionId: string) { }
 
@@ -122,7 +122,7 @@ class BrokerClientCommandListener implements StompClientCommandListener {
     subscribe(headers: StompHeaders): void {
         if (this.session.protocolVersion == StompProtocolHandlerV10.version && !headers.id) {
             // version 1.0 does not require subscription id header, we must generate it.
-            headers.id = this.nextSubscriptionId();
+            headers.id = 'sub_' + this.nextSubscriptionId();
         }
         const subscription: Subscription = Object.seal({
             id: headers.id,
@@ -141,9 +141,31 @@ class BrokerClientCommandListener implements StompClientCommandListener {
     }
 
     unsubscribe(headers: StompHeaders): void {
+        let subscription!: Subscription;
         if (headers.id) {
-
+            subscription = this.broker.subscriptions.get(this.sessionId, headers.id)!;
+        } else {
+            // Fallback for version 1.0: get the first available subscription for the given destination.
+            this.broker.subscriptions.forSessionDestination(this.sessionId, headers.destination, (sub) => {
+                subscription = sub;
+                return false;
+            });
         }
+
+        if (subscription) {
+            const callback = (err?: StompError) => this.unsubscribeCallback(headers, subscription, err);
+            this.broker.listener.unsubscribing(this.sessionId, subscription, callback);
+        } else {
+            log.debug("StompBrokerLayer: error while unsubscribing, cannot find subscription for session %s: %O", this.sessionId, headers);
+            this.sendErrorFrame(new StompError("Cannot unsubscribe: unknown subscription ID or destination."));
+        }
+    }
+
+    private unsubscribeCallback(headers: StompHeaders, subscription: Subscription, err?: StompError) {
+        if (!err) {
+            this.broker.subscriptions.remove(this.sessionId, subscription.id);
+        }
+        return this.receiptCallback(headers, err);
     }
 
     begin(headers: StompHeaders): void {
@@ -223,13 +245,18 @@ class BrokerSubscriptionsRegistry {
         return reg && reg.remove(subscriptionId);
     }
 
-    public forDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void) {
-        const map = new Map<string, Subscription[]>();
+    public forSessionDestination(sessionId: string, destination: string, callback: (subscription: Subscription) => boolean | void): void {
+        const reg = this.bySessionId.get(sessionId);
+        if (reg) {
+            reg.forDestination(destination, sub => callback(sub) || true);
+        }
+    }
+
+    public forDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void): void {
         const sessionRegs = this.byDestination.get(destination);
         if (sessionRegs) {
             sessionRegs.every(reg => reg.forDestination(destination, callback.bind(null, reg.sessionId)) || true);
         }
-        return map;
     }
 
     // TODO: filter method
@@ -264,17 +291,6 @@ class SessionSubscriptionsRegistry {
             arr.splice(arr.findIndex(s => s.id === id), 1);
         }
         return !!subscription;
-    }
-
-    public removeByDestination(destination: string): boolean {
-        const arr = this.byDestination.get(destination);
-        if (arr) {
-            for (let subscription of arr) {
-                this.byId.delete(subscription.id);
-            }
-            this.byDestination.delete(destination);
-        }
-        return !!arr;
     }
 
     public get(id: string) {

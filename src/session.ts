@@ -200,7 +200,7 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
 
     public async connect(headers: StompHeaders): Promise<void> {
         log.debug("StompClientSessionLayer: sending CONNECT frame %j", headers);
-        Object.assign(headers || {}, { 'accept-version': '1.0,1.1,1.2' });
+        headers = Object.assign({ 'accept-version': '1.0,1.1,1.2' }, headers);
         await this.sendFrame(new StompFrame('CONNECT', headers));
     }
 

@@ -113,7 +113,7 @@ describe('STOMP Broker Layer', () => {
         brokerListener.subscribing = (_sessionId, _subscription, cb) => {
             cb();
             check(() => assert.deepEqual(broker.subscriptions.get(_sessionId, _subscription.id), subscription), done);
-        }
+        };
         clientSession.connect({});
     });
 
@@ -132,7 +132,7 @@ describe('STOMP Broker Layer', () => {
         brokerListener.subscribing = (_sessionId, _subscription, cb) => {
             cb();
             check(() => assert.deepEqual(broker.subscriptions.get(_sessionId, _subscription.id), subscriptions[i++]), latch);
-        }
+        };
         clientSession.connect({});
     });
 
@@ -158,8 +158,47 @@ describe('STOMP Broker Layer', () => {
         brokerListener.subscribing = (_sessionId, _subscription, cb) => {
             cb();
             broker.forDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
-        }
+        };
         clientSession.connect({});
+    });
+
+    it(`should unsubscribe from destination`, (done) => {
+        const id = 'sub-001';
+        const destination = '/queue/abc';
+        const subscription = { id, destination, ack: 'auto' }
+        serverListener.connected = () => clientSession.subscribe({ id, destination })
+            .then(() => clientSession.unsubscribe({ id }));
+        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.subscribing = (_sessionId, _subscription, cb) => cb();
+        brokerListener.unsubscribing = (_sessionId, sub, cb) => {
+            cb();
+            check(() => assert.deepEqual(sub, subscription), done);
+        };
+        clientSession.connect({});
+    });
+
+    it(`should send error when unsubscribing from invalid destination`, (done) => {
+        const id = 'sub-001';
+        serverListener.connected = () => clientSession.unsubscribe({ id });
+        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        serverListener.error = (headers) => check(() => assert.equal(headers.message, 'Cannot unsubscribe: unknown subscription ID or destination.'), done);
+        clientSession.connect({});
+    });
+
+    it(`should subscribe and unsubscribe without ID using legacy protocol`, (done) => {
+        const destination = '/queue/abc';
+        const subscription = { destination, ack: 'auto' }
+        serverListener.connected = () => {
+            clientSession.subscribe({ destination })
+                .then(() => clientSession.unsubscribe({ destination }));
+        }
+        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.subscribing = (_sessionId, _subscription, cb) => cb();
+        brokerListener.unsubscribing = (_sessionId, sub, cb) => {
+            cb();
+            check(() => expect(broker.subscriptions.get(_sessionId, sub.id)).to.be.undefined, done);
+        };
+        clientSession.connect({ 'accept-version': '1.0'});
     });
 
 });

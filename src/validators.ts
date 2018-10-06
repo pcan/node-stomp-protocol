@@ -58,18 +58,20 @@ export function requireAllHeaders(...headerNames: string[]) {
     };
 }
 
-export function headerMatchesRegex(headerName: string, regex: RegExp) {
-    return (frame: StompFrame) => {
-        var headerValue = frame.headers[headerName];
-        if (typeof headerValue !== 'string' || !headerValue.match(regex)) {
-            return {
-                isValid: false,
-                message: `Header '${headerName}' has value '${headerValue}' which \
-                    does not match against the following regex: \
-                    '${regex}'`,
-                details: 'Frame: ' + frame.toString()
-            };
-        }
-        return validationOk;
-    };
-}
+// Currently unused.
+
+// export function headerMatchesRegex(headerName: string, regex: RegExp) {
+//     return (frame: StompFrame) => {
+//         var headerValue = frame.headers[headerName];
+//         if (typeof headerValue !== 'string' || !headerValue.match(regex)) {
+//             return {
+//                 isValid: false,
+//                 message: `Header '${headerName}' has value '${headerValue}' which \
+//                     does not match against the following regex: \
+//                     '${regex}'`,
+//                 details: 'Frame: ' + frame.toString()
+//             };
+//         }
+//         return validationOk;
+//     };
+// }
