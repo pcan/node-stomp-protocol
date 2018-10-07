@@ -4,7 +4,7 @@ import {
     StompClientCommandListener, StompServerCommandListener
 } from '../src/protocol'
 import { createStompServerSession, createStompClientSession } from '../src/index';
-import {  countdownLatch, noopFn, noopAsyncFn } from './helpers';
+import { countdownLatch, noopFn, noopAsyncFn } from './helpers';
 import { createServer, Server, createConnection, Socket } from 'net';
 import * as WebSocket from 'ws';
 
@@ -19,11 +19,11 @@ describe('STOMP Client & Server over Plain Socket', () => {
     beforeEach((done) => {
         const latch = countdownLatch(2, done);
         clientListener = {
-            onProtocolError: (err) => { },
+            onProtocolError: (_err) => { },
             onEnd: noopFn
         } as StompClientCommandListener;
         serverListener = {
-            onProtocolError: (err) => { },
+            onProtocolError: (_err) => { },
             onEnd: noopFn
         } as StompServerCommandListener;
         server = createServer((socket) => {
@@ -40,16 +40,16 @@ describe('STOMP Client & Server over Plain Socket', () => {
     });
 
     it(`should perform connection`, (done) => {
-        serverListener.connected = (headers) => done();
-        clientListener.connect = (headers) => serverSession.connected({});
+        serverListener.connected = () => done();
+        clientListener.connect = () => serverSession.connected({});
         clientSession.connect({});
     });
 
     it(`should perform disconnection`, (done) => {
         serverListener.onEnd = done;
-        clientListener.disconnect = (headers) => serverSession.close();
-        serverListener.connected = (headers) => clientSession.disconnect();
-        clientListener.connect = (headers) => serverSession.connected({});
+        clientListener.disconnect = () => serverSession.close();
+        serverListener.connected = () => clientSession.disconnect();
+        clientListener.connect = () => serverSession.connected({});
         clientSession.connect({});
     });
 
@@ -61,7 +61,7 @@ describe('STOMP Client & Server over Plain Socket', () => {
     it(`should handle server-side socket end`, (done) => {
         serverListener.connected = noopAsyncFn;
         serverListener.onEnd = done;
-        clientListener.connect = (headers) => serverSession.connected({});
+        clientListener.connect = () => serverSession.connected({});
         clientSession.connect({}).then(() => clientSession.close());
     });
 
@@ -86,11 +86,11 @@ describe('STOMP Client & Server over WebSocket', () => {
     beforeEach((done) => {
         const latch = countdownLatch(2, done);
         clientListener = {
-            onProtocolError: (err) => { },
+            onProtocolError: (_err) => { },
             onEnd: noopFn
         } as StompClientCommandListener;
         serverListener = {
-            onProtocolError: (err) => { },
+            onProtocolError: (_err) => { },
             onEnd: noopFn
         } as StompServerCommandListener;
 
@@ -106,9 +106,24 @@ describe('STOMP Client & Server over WebSocket', () => {
     });
 
     it(`should perform connection`, (done) => {
-        serverListener.connected = (headers) => done();
-        clientListener.connect = (headers) => serverSession.connected({});
+        serverListener.connected = () => done();
+        clientListener.connect = () => serverSession.connected({});
         clientSession.connect({});
+    });
+
+    it(`should call onEnd when client closes connection`, (done) => {
+        serverListener.connected = () => clientSocket.close();
+        clientListener.connect = () => serverSession.connected({});
+        clientSession.connect({});
+        clientListener.onEnd = done;
+    });
+
+    it(`should call onEnd when client listener throws error`, (done) => {
+        serverListener.connected = () => clientSession.subscribe({ id: '1', destination: '/queue/abc' });
+        clientListener.connect = () => serverSession.connected({});
+        clientListener.subscribe = () => { throw new Error(); };
+        clientSession.connect({});
+        clientListener.onEnd = done;
     });
 
     afterEach((done) => {

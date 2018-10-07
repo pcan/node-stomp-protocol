@@ -106,9 +106,7 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
 
     private onWsMessage(data: any) {
         log.silly("StompWebSocketStreamLayer: received data %O", data);
-        if (this.emitter) {
-            this.emitter.emit('data', new Buffer(data.toString()));
-        }
+        this.emitter.emit('data', new Buffer(data.toString()));
     }
 
     private removeListeners() {
@@ -118,15 +116,8 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
     }
 
     private onWsEnd(event: any) {
-        try {
-            this.removeListeners();
-            log.debug("StompWebSocketStreamLayer: WebSocket closed %O", event);
-            if (this.emitter) {
-                this.emitter.emit('end', event);
-            }
-        } finally {
-            this.webSocket.close();
-        }
+        log.debug("StompWebSocketStreamLayer: WebSocket closed %O", event);
+        this.wsClose();
     }
 
     public async send(data: string): Promise<any> {
@@ -147,8 +138,7 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
         log.debug("StompWebSocketStreamLayer: closing");
         return new Promise((resolve, reject) => {
             try {
-                this.removeListeners();
-                this.webSocket.close();
+                this.wsClose();
             } catch (err) {
                 log.debug("StompWebSocketStreamLayer: error while closing %O", err);
                 reject(err);
@@ -156,6 +146,12 @@ class StompWebSocketStreamLayer implements StompStreamLayer {
                 resolve();
             }
         });
+    }
+
+    private wsClose() {
+        this.removeListeners();
+        this.emitter.emit('end');
+        this.webSocket.close();
     }
 
 }
