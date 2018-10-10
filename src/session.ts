@@ -1,4 +1,4 @@
-import { StompFrame, StompHeaders, StompError, StompSessionData } from './model';
+import { StompFrame, StompHeaders, StompError, StompSessionData, SendError } from './model';
 import { StompFrameLayer } from './frame';
 import {
     StompCommandListener, StompClientCommandListener, StompServerCommandListener,
@@ -65,7 +65,11 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
     }
 
     protected async sendFrame(frame: StompFrame) {
-        await this.frameLayer.send(frame);
+        try {
+            await this.frameLayer.send(frame);
+        } catch (e) {
+            this.sendErrorHandler(new SendError(e, frame));
+        }
     }
 
     private onEnd() {
@@ -75,7 +79,11 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
 
     async close() {
         log.debug("StompFrameLayer: closing");
-        return this.frameLayer.close();
+        try {
+            return this.frameLayer.close();
+        } catch (e) {
+            log.debug("StompFrameLayer: error while closing %O", e);
+        }
     }
 
     protected abstract onError(error: StompError): void;
@@ -84,8 +92,8 @@ export abstract class StompSessionLayer<L extends StompCommandListener> implemen
         return (command && command.length < 20 && this.inboundCommands[command]);
     }
 
-    public internalErrorHandler(e: Error) {
-        log.warn("StompSessionLayer: internal session error for %O", e);
+    public sendErrorHandler(e: SendError) {
+        log.warn("StompSessionLayer: error while sending frame %O", e);
     }
 
 }
@@ -114,11 +122,10 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
                 }
                 super.handleFrame(command, frame);
             } catch (error) {
-                const headers: StompHeaders = { message: error.message };
-                this.error(headers, error.details).catch(this.internalErrorHandler);
+                this.onError(new StompError(error.message, error.details));
             }
         } else {
-            this.error({ message: 'You must first issue a CONNECT command' }).catch(this.internalErrorHandler);
+            this.onError(new StompError('You must first issue a CONNECT command'));
         }
     }
 
@@ -133,7 +140,7 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     }
 
     protected onError(error: StompError) {
-        this.error({ message: error.message }, error.details).catch(this.internalErrorHandler);
+        this.error({ message: error.message }, error.details);
     }
 
     public async connected(headers: StompHeaders) {
@@ -190,7 +197,8 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
         try {
             super.handleFrame(command, frame);
         } catch (error) {
-            this.internalErrorHandler(error);
+            log.debug("StompClientSessionLayer: error while handling frame %O", frame);
+            this.onError(new StompError(error.message));
         }
     }
 

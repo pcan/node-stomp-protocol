@@ -2,6 +2,7 @@ import { Socket } from "net";
 
 export type LoggerFunction = (message: string, ...args: any[]) => any;
 
+const logLevels: Array<keyof StompProtocolLoggingListeners> = ['error', 'warn', 'info', 'debug', 'silly'];
 export interface StompProtocolLoggingListeners {
 
     readonly error: LoggerFunction;
@@ -12,7 +13,18 @@ export interface StompProtocolLoggingListeners {
 
 }
 
-let loggingListeners: StompProtocolLoggingListeners | null = null;
+function noopLoggingListeners() {
+    const loggingListeners = {} as StompProtocolLoggingListeners;
+    for (let level of logLevels) {
+        Object.defineProperty(loggingListeners, level, {
+            writable: false,
+            value: noop
+        });
+    }
+    return loggingListeners;
+}
+
+const loggingListeners = noopLoggingListeners();
 
 export function promiseRejectionHandler(className: string, functionName: string) {
     const location = `${className}: promise rejection in '${functionName}'`;
@@ -20,7 +32,18 @@ export function promiseRejectionHandler(className: string, functionName: string)
 }
 
 export function setLoggingListeners(listeners: StompProtocolLoggingListeners) {
-    loggingListeners = listeners;
+    for (let level of logLevels) {
+        Object.defineProperty(loggingListeners, level, {
+            writable: false,
+            value: (message: string, ...args: any[]) => {
+                try {
+                    return listeners[level](message, ...args);
+                } catch (e) {
+                    // we cannot do nothing here.
+                }
+            }
+        });
+    }
 }
 
 export type GenericSocket = Socket | WebSocket;
@@ -29,31 +52,7 @@ export const counter = (i = 0) => () => (i++).toString();
 
 function noop() { }
 
-class Logging implements StompProtocolLoggingListeners {
-
-    get error() {
-        return loggingListeners ? loggingListeners.error : noop;
-    }
-
-    get warn() {
-        return loggingListeners ? loggingListeners.warn : noop;
-    }
-
-    get info() {
-        return loggingListeners ? loggingListeners.info : noop;
-    }
-
-    get debug() {
-        return loggingListeners ? loggingListeners.debug : noop;
-    }
-
-    get silly() {
-        return loggingListeners ? loggingListeners.silly : noop;
-    }
-
-}
-
-export const log = new Logging() as StompProtocolLoggingListeners;
+export const log = loggingListeners;
 
 export type WebSocketMessageHandler = (event: { data: any; type: string; target: WebSocket }) => void;
 

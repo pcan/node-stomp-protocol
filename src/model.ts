@@ -23,6 +23,14 @@ export class StompError extends Error {
 
 }
 
+export class SendError extends Error {
+
+    constructor(public cause: Error, public frame: StompFrame) {
+        super("Frame Send Error");
+    }
+}
+
+
 export class StompFrame {
 
     public headers: StompHeaders;

@@ -7,7 +7,7 @@ import {
     StompClientCommandListener, StompServerCommandListener, StompProtocolHandlerV10,
     StompProtocolHandlerV11, StompProtocolHandlerV12
 } from '../src/protocol'
-import { check, countdownLatch, noopAsyncFn, noopFn } from './helpers';
+import { check, countdownLatch, noopAsyncFn } from './helpers';
 
 describe('STOMP Server Session Layer', () => {
     let frameLayer: StompFrameLayer;
@@ -37,7 +37,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should use protocol v.1.0`, (done) => {
         const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.0' };
-        clientListener.connect = (headers) => {
+        clientListener.connect = () => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV10), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
@@ -45,7 +45,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should switch to protocol v.1.1`, (done) => {
         const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.1' };
-        clientListener.connect = (headers) => {
+        clientListener.connect = () => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV11), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
@@ -53,7 +53,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should switch to protocol v.1.2`, (done) => {
         const testHeaders = { login: 'user', passcode: 'pass', 'accept-version': '1.2' };
-        clientListener.connect = (headers) => {
+        clientListener.connect = () => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV12), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECT', testHeaders));
@@ -88,7 +88,7 @@ describe('STOMP Server Session Layer', () => {
     });
 
     it(`should send ERROR when catching exceptions from listener`, (done) => {
-        clientListener.connect = (headers) => {
+        clientListener.connect = () => {
             throw new Error('login error');
         };
         frameLayer.send = async (frame) => {
@@ -118,8 +118,8 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should handle errors thrown during onError execution`, (done) => {
         const latch = countdownLatch(2, done);
-        sessionLayer.internalErrorHandler = () => latch();
-        frameLayer.send = (frame: StompFrame) => {
+        sessionLayer.sendErrorHandler = () => latch();
+        frameLayer.send = () => {
             throw new Error('Unhandled error!');
         };
         frameLayer.emitter.emit('frame', new StompFrame('INVALIDFRAME', {}));
@@ -130,7 +130,7 @@ describe('STOMP Server Session Layer', () => {
 
     it(`should send headers and body for SEND frames`, (done) => {
         sessionLayer.data.authenticated = true;
-        clientListener.send = (headers, body) => {
+        clientListener.send = (_headers, body) => {
             check(() => expect(body).exist, done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('SEND', { destination: '/queue/test' }, 'test message'));
@@ -176,7 +176,7 @@ describe('STOMP Client Session Layer', () => {
         };
         serverListener = {} as StompServerCommandListener;
         sessionLayer = new StompClientSessionLayer(frameLayer, serverListener);
-        sessionLayer.internalErrorHandler = console.error;
+        sessionLayer.sendErrorHandler = console.error;
     });
 
     it(`should send accept-version header in CONNECT frame`, (done) => {
@@ -191,14 +191,14 @@ describe('STOMP Client Session Layer', () => {
     });
 
     it(`should switch to protocol v.1.1`, (done) => {
-        serverListener.connected = (headers) => {
+        serverListener.connected = () => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV11), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECTED', { version: '1.1' }));
     });
 
     it(`should switch to protocol v.1.2`, (done) => {
-        serverListener.connected = (headers) => {
+        serverListener.connected = () => {
             check(() => assert.equal((<any>sessionLayer).protocol, StompProtocolHandlerV12), done);
         };
         frameLayer.emitter.emit('frame', new StompFrame('CONNECTED', { version: '1.2' }));
@@ -215,7 +215,7 @@ describe('STOMP Client Session Layer', () => {
 
     it(`should handle command internal errors gracefully`, (done) => {
         const latch = countdownLatch(2, done);
-        sessionLayer.internalErrorHandler = () => latch();
+        serverListener.onProtocolError = () => latch();
         serverListener.message = () => {
             throw new Error('Unhandled error!');
         }

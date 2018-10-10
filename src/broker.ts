@@ -15,6 +15,8 @@ export interface StompBrokerListener {
 
     connecting(sessionId: string, headers: StompHeaders, done: (err?: StompError) => void): void;
 
+    disconnecting(sessionId: string, headers: StompHeaders, done: (err?: StompError) => void): void;
+
     incomingMessage(sessionId: string, headers: StompHeaders, body: string | undefined, done: (err?: StompError) => void): void;
 
     subscribing(sessionId: string, subscription: Subscription, done: (err?: StompError) => void): void;
@@ -25,7 +27,7 @@ export interface StompBrokerListener {
 
 }
 
-export interface StompBrokerCommands {
+export interface StompBrokerLayer {
 
     /**
      * Accept an incoming connection and creates a STOMP session
@@ -39,13 +41,15 @@ export interface StompBrokerCommands {
      * @param  destination The destination
      * @param  callback    The callback to execute for each subscription; to break the iteration, return false.
      */
-    forDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void): void;
+    subscriptionsByDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void): void;
+
+
 
 
 }
 
 
-export class StompBrokerLayer implements StompBrokerCommands { //TODO: factory method
+export class StompBrokerLayerImpl implements StompBrokerLayer { //TODO: factory method
 
     private readonly nextSessionId = counter(); //TODO: let the user choice the Session ID generation strategy.
 
@@ -64,14 +68,14 @@ export class StompBrokerLayer implements StompBrokerCommands { //TODO: factory m
         const session = new StompServerSessionLayer(frameLayer, clientListener);
         clientListener.session = session;
 
-        session.internalErrorHandler = (err) => this.listener.sessionError(sessionId, err);
+        session.sendErrorHandler = (err) => this.listener.sessionError(sessionId, err);
 
         session.data.id = sessionId;
         this.sessions.set(sessionId, session);
         return sessionId;
     }
 
-    public forDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void) {
+    public subscriptionsByDestination(destination: string, callback: (sessionId: string, subscription: Subscription) => boolean | void) {
         this.subscriptions.forDestination(destination, callback);
     }
 
@@ -84,27 +88,32 @@ class BrokerClientCommandListener implements StompClientCommandListener {
 
     private readonly nextSubscriptionId = counter();  //TODO: let the user choice the Subscription ID generation strategy.
 
-    constructor(private readonly broker: StompBrokerLayer, private readonly sessionId: string) { }
+    constructor(private readonly broker: StompBrokerLayerImpl, private readonly sessionId: string) { }
 
     connect(headers: StompHeaders): void {
         this.broker.listener.connecting(this.sessionId, headers, (err) => this.connectCallback(err));
     }
 
     private connectCallback(err?: StompError) {
-        const session = this.session;
         if (err) {
-            log.debug("StompBrokerLayer: error while connecting session %s: %O", session.data.id, err);
+            log.debug("StompBrokerLayer: error while connecting session %s: %O", this.session.data.id, err);
             this.sendErrorFrame(err);
         } else {
-            session.connected({ version: session.protocolVersion, server: 'StompBroker/1.0.0' })  //TODO: configure broker name
-                .catch(session.internalErrorHandler);
+            this.session.connected({ version: this.session.protocolVersion, server: 'StompBroker/1.0.0' });  //TODO: configure broker name
         }
     }
 
-    private sendErrorFrame(err: StompError, headers?: StompHeaders) {
+    /**
+     * Sends an ERROR frame.
+     * There's no need to .catch() on the promise, since internal errors are already
+     * handled in StompSessionLayer.
+     * @param  headers Stomp Headers
+     * @param  err     Stomp Error
+     */
+    private async sendErrorFrame(err: StompError, headers?: StompHeaders) {
         headers = headers || {};
         headers.message = err.message;
-        this.session.error(headers, err.details).catch(this.session.internalErrorHandler);
+        await this.session.error(headers, err.details);
     }
 
     send(headers: StompHeaders, body?: string): void {
@@ -112,12 +121,19 @@ class BrokerClientCommandListener implements StompClientCommandListener {
         this.broker.listener.incomingMessage(this.sessionId, headers, body, callback);
     }
 
-    private receiptCallback(headers: StompHeaders, err?: StompError) {
+    /**
+     * Sends a RECEIPT frame, if the request headers contain a receipt ID.
+     * There's no need to .catch() on the promise, since internal errors are already
+     * handled in StompSessionLayer.
+     * @param  headers Stomp Headers that may contain a receipt ID
+     * @param  err     Stomp Error object created by user
+     */
+    private async receiptCallback(headers: StompHeaders, err?: StompError) {
         const receipt = typeof headers.receipt === 'string' ? headers.receipt : undefined;
         if (err) {
-            this.sendErrorFrame(err, receipt ? { 'receipt-id': receipt } : undefined);
+            await this.sendErrorFrame(err, receipt ? { 'receipt-id': receipt } : undefined);
         } else if (receipt) {
-            this.session.receipt({ 'receipt-id': receipt });
+            await this.session.receipt({ 'receipt-id': receipt });
         }
     }
 

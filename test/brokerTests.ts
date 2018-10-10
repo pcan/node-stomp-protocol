@@ -5,13 +5,13 @@ import {
 } from '../src/protocol'
 import { createStompClientSession, StompError } from '../src/index';
 import { countdownLatch, noopFn, check } from './helpers';
-import { StompBrokerLayer, StompBrokerListener } from '../src/broker';
+import { StompBrokerLayerImpl, StompBrokerListener } from '../src/broker';
 import { createServer, Server, createConnection, Socket } from 'net';
 import { assert, expect } from 'chai';
 
 
 describe('STOMP Broker Layer', () => {
-    let broker: StompBrokerLayer;
+    let broker: StompBrokerLayerImpl;
     let clientSession: StompClientSessionLayer;
     let serverListener: StompServerCommandListener;
     let brokerListener: StompBrokerListener;
@@ -19,7 +19,6 @@ describe('STOMP Broker Layer', () => {
     let clientSocket: Socket;
 
     beforeEach((done) => {
-        const latch = countdownLatch(2, done);
         serverListener = {
             onProtocolError: (_err) => { },
             onEnd: noopFn
@@ -27,11 +26,14 @@ describe('STOMP Broker Layer', () => {
         brokerListener = {
         } as StompBrokerListener;
 
-        broker = new StompBrokerLayer(brokerListener);
+        broker = new StompBrokerLayerImpl(brokerListener);
         server = createServer((socket) => broker.accept(socket));
-        server.listen(59999, 'localhost', latch);
-        clientSocket = createConnection(59999, 'localhost', latch);
-        clientSession = createStompClientSession(clientSocket, serverListener);
+        server.listen();
+        server.on('listening', () => {
+            const port = server.address().port;
+            clientSocket = createConnection(port, 'localhost', done);
+            clientSession = createStompClientSession(clientSocket, serverListener);
+        });
     });
 
     afterEach((done) => {
@@ -45,10 +47,17 @@ describe('STOMP Broker Layer', () => {
         clientSession.connect({});
     });
 
-    it(`should refuse incoming connection`, (done) => {
+    it(`should refuse incoming connection with error object`, (done) => {
         const loginError = new StompError("Login Error");
         serverListener.error = (err) => check(() => assert.deepEqual(err!.message, loginError.message), done);
         brokerListener.connecting = (_sessionId, _headers, cb) => cb(loginError);
+        clientSession.connect({});
+    });
+
+    it(`should refuse incoming connection by throwing error`, (done) => {
+        const loginError = new StompError("Login Error");
+        serverListener.error = (err) => check(() => assert.deepEqual(err!.message, loginError.message), done);
+        brokerListener.connecting = () => { throw loginError; }
         clientSession.connect({});
     });
 
@@ -136,7 +145,7 @@ describe('STOMP Broker Layer', () => {
         clientSession.connect({});
     });
 
-    it(`should send error when subscribe with same id multiple times`, (done) => {
+    it(`should send error when subscribing with same id multiple times`, (done) => {
         const destination = '/queue/abc';
         const subscription = { id: 'sub-001', destination, ack: 'auto' };
         serverListener.connected = () =>
@@ -157,7 +166,7 @@ describe('STOMP Broker Layer', () => {
         brokerListener.connecting = (_sessionId, _headers, cb) => cb();
         brokerListener.subscribing = (_sessionId, _subscription, cb) => {
             cb();
-            broker.forDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
+            broker.subscriptionsByDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
         };
         clientSession.connect({});
     });
