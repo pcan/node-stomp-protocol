@@ -17,7 +17,6 @@ describe('STOMP Client & Server over Plain Socket', () => {
     let clientSocket: Socket;
 
     beforeEach((done) => {
-        const latch = countdownLatch(2, done);
         clientListener = {
             onProtocolError: (_err) => { },
             onEnd: noopFn
@@ -29,9 +28,12 @@ describe('STOMP Client & Server over Plain Socket', () => {
         server = createServer((socket) => {
             serverSession = createStompServerSession(socket, clientListener);
         });
-        server.listen(59999, 'localhost', latch);
-        clientSocket = createConnection(59999, 'localhost', latch);
-        clientSession = createStompClientSession(clientSocket, serverListener);
+        server.listen();
+        server.on('listening', () => {
+            const port = server.address().port;
+            clientSocket = createConnection(port, 'localhost', done);
+            clientSession = createStompClientSession(clientSocket, serverListener);
+        });
     });
 
     afterEach((done) => {
