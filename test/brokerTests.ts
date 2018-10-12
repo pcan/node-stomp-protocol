@@ -24,7 +24,7 @@ describe('STOMP Broker Layer', () => {
             onEnd: noopFn
         } as StompServerCommandListener;
         brokerListener = {
-            sessionEnd: (_sessionId) => {}
+            sessionEnd: (_sessionId) => { }
         } as StompBrokerListener;
 
         broker = new StompBrokerLayerImpl(brokerListener);
@@ -52,6 +52,13 @@ describe('STOMP Broker Layer', () => {
         const loginError = new StompError("Login Error");
         serverListener.error = (err) => check(() => assert.deepEqual(err!.message, loginError.message), done);
         brokerListener.connecting = () => { throw loginError; }
+        clientSession.connect({});
+    });
+
+    it(`should handle disconnect`, (done) => {
+        serverListener.connected = () => clientSession.disconnect()
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.disconnecting = async () => done();
         clientSession.connect({});
     });
 
@@ -105,7 +112,7 @@ describe('STOMP Broker Layer', () => {
         clientSession.connect({});
     });
 
-    it(`should subscribe to destination`, (done) => {
+    it(`should handle subscription to destination`, (done) => {
         const id = 'sub-001';
         const destination = '/queue/abc';
         const subscription = { id, destination, ack: 'auto' }
@@ -116,7 +123,7 @@ describe('STOMP Broker Layer', () => {
         clientSession.connect({});
     });
 
-    it(`should subscribe to destination multiple times`, (done) => {
+    it(`should handle subscription to destination multiple times`, (done) => {
         const latch = countdownLatch(2, done);
         const id1 = 'sub-001';
         const id2 = 'sub-002';
@@ -168,11 +175,11 @@ describe('STOMP Broker Layer', () => {
                 .then(() => clientSession.subscribe(subscription));
         brokerListener.connecting = noopAsyncFn;
         brokerListener.subscribing = async () =>
-            broker.subscriptionsByDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
+            broker.forDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
         clientSession.connect({});
     });
 
-    it(`should unsubscribe from destination`, (done) => {
+    it(`should handle unsubscription from destination`, (done) => {
         const id = 'sub-001';
         const destination = '/queue/abc';
         const subscription = { id, destination, ack: 'auto' }
@@ -193,7 +200,7 @@ describe('STOMP Broker Layer', () => {
         clientSession.connect({});
     });
 
-    it(`should subscribe and unsubscribe without ID using legacy protocol`, (done) => {
+    it(`should handle subscription and unsubscription without ID using legacy protocol`, (done) => {
         const destination = '/queue/abc';
         serverListener.connected = () => {
             clientSession.subscribe({ destination })
@@ -239,7 +246,6 @@ describe('STOMP Broker Layer', () => {
         const transaction = 't001';
         serverListener.connected = () => clientSession.begin({ transaction });
         brokerListener.connecting = noopAsyncFn;
-        brokerListener.incomingMessage = noopAsyncFn;
         brokerListener.beginningTransaction = async (_sessionId, transactionId) =>
             check(() => assert.equal(transactionId, transaction), done);
         clientSession.connect({});
@@ -252,7 +258,78 @@ describe('STOMP Broker Layer', () => {
         brokerListener.connecting = noopAsyncFn;
         brokerListener.incomingMessage = noopAsyncFn;
         brokerListener.beginningTransaction = noopAsyncFn;
-        serverListener.error = (headers) => check(() => assert.equal(headers.message, `Transaction with ID ${transaction} already started.`), done);
+        serverListener.error = (headers) => check(() => assert.include(headers.message, `Transaction with ID ${transaction} already started`), done);
+        clientSession.connect({});
+    });
+
+    it(`should handle transaction commit`, (done) => {
+        const transaction = 't001';
+        serverListener.connected = () => clientSession.begin({ transaction })
+            .then(() => clientSession.commit({ transaction }));
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.beginningTransaction = noopAsyncFn;
+        brokerListener.committingTransaction = async (_sessionId, transactionId) =>
+            check(() => assert.equal(transactionId, transaction), done);
+        clientSession.connect({});
+    });
+
+    it(`should send error when committing an invalid transaction`, (done) => {
+        const transaction = 't001';
+        serverListener.connected = () => clientSession.commit({ transaction });
+        brokerListener.connecting = noopAsyncFn;
+        serverListener.error = (headers) => check(() => assert.include(headers.message, `Transaction with ID ${transaction} not found`), done);
+        clientSession.connect({});
+    });
+
+    it(`should handle transaction abort`, (done) => {
+        const transaction = 't001';
+        serverListener.connected = () => clientSession.begin({ transaction })
+            .then(() => clientSession.abort({ transaction }));
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.beginningTransaction = noopAsyncFn;
+        brokerListener.abortingTransaction = async (_sessionId, transactionId) =>
+            check(() => assert.equal(transactionId, transaction), done);
+        clientSession.connect({});
+    });
+
+    it(`should send a message to a specific session subscription`, (done) => {
+        const id = 'sub-001';
+        const messageId = '1';
+        const body = 'hello';
+        const destination = '/queue/abc';
+        const message = {
+            headers: { 'content-length': '5', 'message-id': messageId, destination, subscription: id },
+            body
+        }
+        let sessionId: string;
+        serverListener.connected = () => clientSession.subscribe({ id, destination, receipt: 'r123' });
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = async (id, _sub) => { sessionId = id };
+        serverListener.receipt = () => {
+            broker.sendMessage({ headers: { 'message-id': messageId }, body }, destination, sessionId);
+        }
+        serverListener.message = (headers, body) =>
+            check(() => assert.deepEqual({ headers, body }, message), done);
+        clientSession.connect({});
+    });
+
+    it(`should send a message to a destination for all sessions`, (done) => {
+        const id = 'sub-001';
+        const messageId = '1';
+        const body = 'hello';
+        const destination = '/queue/abc';
+        const message = {
+            headers: { 'content-length': '5', 'message-id': messageId, destination, subscription: id },
+            body
+        }
+        serverListener.connected = () => clientSession.subscribe({ id, destination, receipt: 'r123' });
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = noopAsyncFn;
+        serverListener.receipt = () => {
+            broker.sendMessage({ headers: { 'message-id': messageId }, body }, destination);
+        }
+        serverListener.message = (headers, body) =>
+            check(() => assert.deepEqual({ headers, body }, message), done);
         clientSession.connect({});
     });
 

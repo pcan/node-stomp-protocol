@@ -26,10 +26,11 @@ function noopLoggingListeners() {
 
 const loggingListeners = noopLoggingListeners();
 
-export function promiseRejectionHandler(className: string, functionName: string) {
-    const location = `${className}: promise rejection in '${functionName}'`;
-    return (e: Error) => log.debug(location, e);
-}
+// Currently unused
+// export function promiseRejectionHandler(className: string, functionName: string) {
+//     const location = `${className}: promise rejection in '${functionName}'`;
+//     return (e: Error) => log.debug(location, e);
+// }
 
 export function setLoggingListeners(listeners: StompProtocolLoggingListeners) {
     for (let level of logLevels) {

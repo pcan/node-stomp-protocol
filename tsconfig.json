@@ -2,7 +2,7 @@
     "compilerOptions": {
         "moduleResolution": "node",
         "module": "CommonJS",
-        "target": "ES6",
+        "target": "ES2017",
         "inlineSourceMap": true,
         "outDir": "./dist",
         "declaration": true,

@@ -30,8 +30,15 @@ export class SendError extends Error {
     }
 }
 
+export interface StompMessage {
 
-export class StompFrame {
+    headers?: StompHeaders;
+    body?: string;
+
+}
+
+
+export class StompFrame implements StompMessage {
 
     public headers: StompHeaders;
     public body: string;

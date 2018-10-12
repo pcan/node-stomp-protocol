@@ -25,7 +25,7 @@
     "url": "https://github.com/pcan/node-stomp-protocol.git"
   },
   "engines": {
-    "node": ">=7.0.0"
+    "node": ">=8"
   },
   "nyc": {
     "include": [
