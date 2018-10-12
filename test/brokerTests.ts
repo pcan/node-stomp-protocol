@@ -4,8 +4,8 @@ import {
     StompServerCommandListener
 } from '../src/protocol'
 import { createStompClientSession, StompError } from '../src/index';
-import { countdownLatch, noopFn, check } from './helpers';
-import { StompBrokerLayerImpl, StompBrokerListener } from '../src/broker';
+import { countdownLatch, noopFn, noopAsyncFn, check } from './helpers';
+import { StompBrokerLayerImpl, StompBrokerListener, Subscription } from '../src/broker';
 import { createServer, Server, createConnection, Socket } from 'net';
 import { assert, expect } from 'chai';
 
@@ -24,6 +24,7 @@ describe('STOMP Broker Layer', () => {
             onEnd: noopFn
         } as StompServerCommandListener;
         brokerListener = {
+            sessionEnd: (_sessionId) => {}
         } as StompBrokerListener;
 
         broker = new StompBrokerLayerImpl(brokerListener);
@@ -43,14 +44,7 @@ describe('STOMP Broker Layer', () => {
 
     it(`should accept incoming connection`, (done) => {
         serverListener.connected = () => done();
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        clientSession.connect({});
-    });
-
-    it(`should refuse incoming connection with error object`, (done) => {
-        const loginError = new StompError("Login Error");
-        serverListener.error = (err) => check(() => assert.deepEqual(err!.message, loginError.message), done);
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb(loginError);
+        brokerListener.connecting = noopAsyncFn;
         clientSession.connect({});
     });
 
@@ -72,11 +66,9 @@ describe('STOMP Broker Layer', () => {
             body
         }
         serverListener.connected = () => clientSession.send({ destination }, body);
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, headers, body, cb) => {
-            cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = async (_sessionId, headers, body) =>
             check(() => assert.deepEqual({ headers, body }, expectedMessage), done);
-        };
         clientSession.connect({});
     });
 
@@ -84,8 +76,8 @@ describe('STOMP Broker Layer', () => {
         const receipt = 'r123';
         const destination = '/queue/abc';
         serverListener.connected = () => clientSession.send({ destination, receipt }, 'test message');
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = noopAsyncFn;
         serverListener.receipt = (headers) =>
             check(() => assert.equal(headers['receipt-id'], receipt), done);
         clientSession.connect({});
@@ -95,8 +87,8 @@ describe('STOMP Broker Layer', () => {
         const destination = '/queue/abc';
         const message = 'Error message';
         serverListener.connected = () => clientSession.send({ destination }, 'test message');
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb(new StompError(message));
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = async () => { throw new StompError(message); };
         serverListener.error = (headers) =>
             check(() => assert.equal(message, headers.message), done);
         clientSession.connect({});
@@ -106,8 +98,8 @@ describe('STOMP Broker Layer', () => {
         const receipt = 'r123';
         const destination = '/queue/abc';
         serverListener.connected = () => clientSession.send({ destination, receipt }, 'test message');
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.incomingMessage = (_sessionId, _headers, _body, cb) => cb(new StompError());
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = async () => { throw new StompError(); };
         serverListener.error = (headers) =>
             check(() => assert.equal(headers['receipt-id'], receipt), done);
         clientSession.connect({});
@@ -118,11 +110,9 @@ describe('STOMP Broker Layer', () => {
         const destination = '/queue/abc';
         const subscription = { id, destination, ack: 'auto' }
         serverListener.connected = () => clientSession.subscribe({ id, destination });
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => {
-            cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = async (_sessionId, _subscription) =>
             check(() => assert.deepEqual(broker.subscriptions.get(_sessionId, _subscription.id), subscription), done);
-        };
         clientSession.connect({});
     });
 
@@ -136,23 +126,36 @@ describe('STOMP Broker Layer', () => {
             clientSession.subscribe(subscriptions[0])
                 .then(() => clientSession.subscribe(subscriptions[1]));
         }
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.connecting = noopAsyncFn;
         let i = 0;
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => {
-            cb();
-            check(() => assert.deepEqual(broker.subscriptions.get(_sessionId, _subscription.id), subscriptions[i++]), latch);
-        };
+        brokerListener.subscribing = async (sessionId, subscription) =>
+            check(() => assert.deepEqual(broker.subscriptions.get(sessionId, subscription.id), subscriptions[i++]), latch);
         clientSession.connect({});
     });
 
-    it(`should send error when subscribing with same id multiple times`, (done) => {
+    it(`should cancel subscription when listener throws error`, (done) => {
+        const id = 'sub-001';
+        serverListener.connected = () =>
+            clientSession.subscribe({ id, destination: '/queue/abc', ack: 'auto' });
+        brokerListener.connecting = noopAsyncFn;
+        let sessionId: string;
+        brokerListener.subscribing = async (_sessionId) => {
+            sessionId = _sessionId;
+            throw new StompError()
+        };
+        serverListener.error = () =>
+            check(() => expect(broker.subscriptions.get(sessionId, id)).to.be.undefined, done);
+        clientSession.connect({});
+    });
+
+    it(`should send error when subscribing with same ID multiple times`, (done) => {
         const destination = '/queue/abc';
         const subscription = { id: 'sub-001', destination, ack: 'auto' };
         serverListener.connected = () =>
             clientSession.subscribe(subscription)
                 .then(() => clientSession.subscribe(subscription));
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = noopAsyncFn;
         serverListener.error = (headers) => check(() => assert.include(headers.message, 'Subscription ID sub-001 already found for session'), done);
         clientSession.connect({});
     });
@@ -163,11 +166,9 @@ describe('STOMP Broker Layer', () => {
         serverListener.connected = () =>
             clientSession.subscribe(subscription)
                 .then(() => clientSession.subscribe(subscription));
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => {
-            cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = async () =>
             broker.subscriptionsByDestination(destination, (_sessionId, sub) => check(() => assert.deepEqual(sub, subscription), done));
-        };
         clientSession.connect({});
     });
 
@@ -177,19 +178,17 @@ describe('STOMP Broker Layer', () => {
         const subscription = { id, destination, ack: 'auto' }
         serverListener.connected = () => clientSession.subscribe({ id, destination })
             .then(() => clientSession.unsubscribe({ id }));
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => cb();
-        brokerListener.unsubscribing = (_sessionId, sub, cb) => {
-            cb();
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = noopAsyncFn;
+        brokerListener.unsubscribing = async (_sessionId, sub) =>
             check(() => assert.deepEqual(sub, subscription), done);
-        };
         clientSession.connect({});
     });
 
     it(`should send error when unsubscribing from invalid destination`, (done) => {
         const id = 'sub-001';
         serverListener.connected = () => clientSession.unsubscribe({ id });
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
+        brokerListener.connecting = noopAsyncFn;
         serverListener.error = (headers) => check(() => assert.equal(headers.message, 'Cannot unsubscribe: unknown subscription ID or destination.'), done);
         clientSession.connect({});
     });
@@ -198,14 +197,18 @@ describe('STOMP Broker Layer', () => {
         const destination = '/queue/abc';
         serverListener.connected = () => {
             clientSession.subscribe({ destination })
-                .then(() => clientSession.unsubscribe({ destination }));
+                .then(() => clientSession.unsubscribe({ destination, receipt: 'r001' }));
         }
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.subscribing = (_sessionId, _subscription, cb) => cb();
-        brokerListener.unsubscribing = (_sessionId, sub, cb) => {
-            cb();
-            check(() => expect(broker.subscriptions.get(_sessionId, sub.id)).to.be.undefined, done);
-        };
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.subscribing = noopAsyncFn;
+        let subscription: Subscription;
+        let sessionId: string;
+        brokerListener.unsubscribing = async (_sessionId, sub) => {
+            sessionId = _sessionId;
+            subscription = broker.subscriptions.get(sessionId, sub.id)!;
+        }
+        serverListener.receipt = () =>
+            check(() => expect(broker.subscriptions.get(sessionId, subscription.id)).to.be.undefined, done);
         clientSession.connect({ 'accept-version': '1.0' });
     });
 
@@ -213,11 +216,9 @@ describe('STOMP Broker Layer', () => {
         const id = 'msg-001';
         const ack = { messageId: id, value: true };
         serverListener.connected = () => clientSession.ack({ id });
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.acknowledging = (_sessionId, _acknowledge, cb) => {
-            cb();
-            check(() => assert.deepEqual(ack, _acknowledge), done);
-        };
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.acknowledging = async (_sessionId, acknowledge) =>
+            check(() => assert.deepEqual(ack, acknowledge), done);
         clientSession.connect({});
     });
 
@@ -227,11 +228,31 @@ describe('STOMP Broker Layer', () => {
         const subscription = 'sub-001';
         const ack = { messageId: id, value: false, transaction, subscription };
         serverListener.connected = () => clientSession.nack({ id, transaction, subscription });
-        brokerListener.connecting = (_sessionId, _headers, cb) => cb();
-        brokerListener.acknowledging = (_sessionId, _acknowledge, cb) => {
-            cb();
-            check(() => assert.deepEqual(ack, _acknowledge), done);
-        };
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.acknowledging = async (_sessionId, acknowledge) =>
+            check(() => assert.deepEqual(ack, acknowledge), done);
+
+        clientSession.connect({});
+    });
+
+    it(`should handle transaction begin`, (done) => {
+        const transaction = 't001';
+        serverListener.connected = () => clientSession.begin({ transaction });
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = noopAsyncFn;
+        brokerListener.beginningTransaction = async (_sessionId, transactionId) =>
+            check(() => assert.equal(transactionId, transaction), done);
+        clientSession.connect({});
+    });
+
+    it(`should send error when beginning transactions with same ID`, (done) => {
+        const transaction = 't001';
+        serverListener.connected = () => clientSession.begin({ transaction })
+            .then(() => clientSession.begin({ transaction }));
+        brokerListener.connecting = noopAsyncFn;
+        brokerListener.incomingMessage = noopAsyncFn;
+        brokerListener.beginningTransaction = noopAsyncFn;
+        serverListener.error = (headers) => check(() => assert.equal(headers.message, `Transaction with ID ${transaction} already started.`), done);
         clientSession.connect({});
     });
 

@@ -13,17 +13,23 @@ export interface StompBrokerListener {
 
     sessionError(sessionId: string, error: Error): void
 
-    connecting(sessionId: string, headers: StompHeaders, done: (err?: StompError) => void): void;
+    connecting(sessionId: string, headers: StompHeaders): Promise<void>;
 
-    disconnecting(sessionId: string, headers: StompHeaders, done: (err?: StompError) => void): void;
+    disconnecting(sessionId: string, headers: StompHeaders): Promise<void>;
 
-    incomingMessage(sessionId: string, headers: StompHeaders, body: string | undefined, done: (err?: StompError) => void): void;
+    incomingMessage(sessionId: string, headers: StompHeaders, body: string | undefined): Promise<void>;
 
-    subscribing(sessionId: string, subscription: Subscription, done: (err?: StompError) => void): void;
+    subscribing(sessionId: string, subscription: Subscription): Promise<void>;
 
-    unsubscribing(sessionId: string, subscription: Subscription, done: (err?: StompError) => void): void;
+    unsubscribing(sessionId: string, subscription: Subscription): Promise<void>;
 
-    acknowledging(sessionId: string, acknowledge: Acknowledge, done: (err?: StompError) => void): void;
+    acknowledging(sessionId: string, acknowledge: Acknowledge): Promise<void>;
+
+    beginningTransaction(sessionId: string, transactionId: string): Promise<void>;
+
+    committingTransaction(sessionId: string, transactionId: string): Promise<void>;
+
+    cancellingTransaction(sessionId: string, transactionId: string): Promise<void>;
 
 }
 
@@ -79,6 +85,11 @@ export class StompBrokerLayerImpl implements StompBrokerLayer { //TODO: factory 
         this.subscriptions.forDestination(destination, callback);
     }
 
+    public sessionEnd(sessionId: string) {
+        this.subscriptions.remove(sessionId);
+        this.sessions.delete(sessionId);
+    }
+
 }
 
 
@@ -87,26 +98,72 @@ class BrokerClientCommandListener implements StompClientCommandListener {
     session!: StompServerSessionLayer; // Server-side session for a connected client
 
     private readonly nextSubscriptionId = counter();  //TODO: let the user choice the Subscription ID generation strategy.
+    private readonly sessionError = (err: any) => this.broker.listener.sessionError(this.sessionId, err);
+    private readonly transactions = new Set<string>();
 
     constructor(private readonly broker: StompBrokerLayerImpl, private readonly sessionId: string) { }
 
     connect(headers: StompHeaders): void {
-        this.broker.listener.connecting(this.sessionId, headers, (err) => this.connectCallback(err));
+        this.doConnect(headers).catch(this.sessionError);
     }
 
-    private connectCallback(err?: StompError) {
-        if (err) {
+    send(headers: StompHeaders, body?: string): void {
+        this.doSend(headers, body).catch(this.sessionError);
+    }
+
+    subscribe(headers: StompHeaders): void {
+        this.doSubscribe(headers).catch(this.sessionError);
+    }
+
+    unsubscribe(headers: StompHeaders): void {
+        this.doUnubscribe(headers).catch(this.sessionError);
+    }
+
+    begin(headers: StompHeaders): void {
+        this.doBegin(headers).catch(this.sessionError);
+    }
+
+    commit(headers: StompHeaders): void {
+
+    }
+
+    abort(headers: StompHeaders): void {
+
+    }
+
+    ack(headers: StompHeaders): void {
+        this.doAcknowledge(true, headers).catch(this.sessionError);
+    }
+
+    nack(headers: StompHeaders): void {
+        this.doAcknowledge(false, headers).catch(this.sessionError);
+    }
+
+    disconnect(headers: StompHeaders): void {
+        //TODO: handle receipt
+    }
+
+    onProtocolError(error: StompError): void {
+    }
+
+    onEnd(): void {
+        this.broker.sessionEnd(this.sessionId);
+        this.broker.listener.sessionEnd(this.sessionId);
+        //TODO: cleanup subscriptions
+    }
+
+    private async doConnect(headers: StompHeaders) {
+        try {
+            await this.broker.listener.connecting(this.sessionId, headers);
+            await this.session.connected({ version: this.session.protocolVersion, server: 'StompBroker/1.0.0' });  //TODO: configure broker name
+        } catch (err) {
             log.debug("StompBrokerLayer: error while connecting session %s: %O", this.session.data.id, err);
-            this.sendErrorFrame(err);
-        } else {
-            this.session.connected({ version: this.session.protocolVersion, server: 'StompBroker/1.0.0' });  //TODO: configure broker name
+            await this.sendErrorFrame(err);
         }
     }
 
     /**
      * Sends an ERROR frame.
-     * There's no need to .catch() on the promise, since internal errors are already
-     * handled in StompSessionLayer.
      * @param  headers Stomp Headers
      * @param  err     Stomp Error
      */
@@ -116,15 +173,17 @@ class BrokerClientCommandListener implements StompClientCommandListener {
         await this.session.error(headers, err.details);
     }
 
-    send(headers: StompHeaders, body?: string): void {
-        const callback = (err?: StompError) => this.receiptCallback(headers, err);
-        this.broker.listener.incomingMessage(this.sessionId, headers, body, callback);
+    private async doSend(headers: StompHeaders, body?: string) {
+        try {
+            await this.broker.listener.incomingMessage(this.sessionId, headers, body);
+            await this.receiptCallback(headers);
+        } catch (err) {
+            await this.receiptCallback(headers, err);
+        }
     }
 
     /**
      * Sends a RECEIPT frame, if the request headers contain a receipt ID.
-     * There's no need to .catch() on the promise, since internal errors are already
-     * handled in StompSessionLayer.
      * @param  headers Stomp Headers that may contain a receipt ID
      * @param  err     Stomp Error object created by user
      */
@@ -137,7 +196,7 @@ class BrokerClientCommandListener implements StompClientCommandListener {
         }
     }
 
-    subscribe(headers: StompHeaders): void {
+    private async doSubscribe(headers: StompHeaders) {
         if (this.session.protocolVersion == StompProtocolHandlerV10.version && !headers.id) {
             // version 1.0 does not require subscription id header, we must generate it.
             headers.id = 'sub_' + this.nextSubscriptionId();
@@ -147,19 +206,22 @@ class BrokerClientCommandListener implements StompClientCommandListener {
             destination: headers.destination,
             ack: headers.ack || 'auto'
         });
-        const callback = (err?: StompError) => this.subscribeCallback(headers, subscription, err);
-        this.broker.listener.subscribing(this.sessionId, subscription, callback);
-    }
-
-    private subscribeCallback(headers: StompHeaders, subscription: Subscription, err?: StompError) {
-        if (!err) {
+        try {
             this.broker.subscriptions.add(this.sessionId, subscription);
+            try {
+                await this.broker.listener.subscribing(this.sessionId, subscription);
+            } catch (err) {
+                this.broker.subscriptions.remove(this.sessionId, subscription.id);
+                throw err;
+            }
+            await this.receiptCallback(headers);
+        } catch (err) {
+            await this.receiptCallback(headers, err);
         }
-        return this.receiptCallback(headers, err);
     }
 
-    unsubscribe(headers: StompHeaders): void {
-        let subscription!: Subscription;
+    private async doUnubscribe(headers: StompHeaders) {
+        let subscription: Subscription | undefined;
         if (headers.id) {
             subscription = this.broker.subscriptions.get(this.sessionId, headers.id)!;
         } else {
@@ -169,44 +231,20 @@ class BrokerClientCommandListener implements StompClientCommandListener {
                 return false;
             });
         }
-
-        if (subscription) {
-            const callback = (err?: StompError) => this.unsubscribeCallback(headers, subscription, err);
-            this.broker.listener.unsubscribing(this.sessionId, subscription, callback);
-        } else {
-            log.debug("StompBrokerLayer: error while unsubscribing, cannot find subscription for session %s: %O", this.sessionId, headers);
-            this.sendErrorFrame(new StompError("Cannot unsubscribe: unknown subscription ID or destination."));
-        }
-    }
-
-    private unsubscribeCallback(headers: StompHeaders, subscription: Subscription, err?: StompError) {
-        if (!err) {
+        try {
+            if (!subscription) {
+                log.debug("StompBrokerLayer: error while unsubscribing, cannot find subscription for session %s: %O", this.sessionId, headers);
+                throw new StompError("Cannot unsubscribe: unknown subscription ID or destination.");
+            }
+            await this.broker.listener.unsubscribing(this.sessionId, subscription);
             this.broker.subscriptions.remove(this.sessionId, subscription.id);
+            await this.receiptCallback(headers);
+        } catch (err) {
+            await this.receiptCallback(headers, err);
         }
-        return this.receiptCallback(headers, err);
     }
 
-    begin(headers: StompHeaders): void {
-
-    }
-
-    commit(headers: StompHeaders): void {
-
-    }
-
-    abort(headers: StompHeaders): void {
-
-    }
-
-    ack(headers: StompHeaders): void {
-        this.acknowledge(true, headers);
-    }
-
-    nack(headers: StompHeaders): void {
-        this.acknowledge(false, headers);
-    }
-
-    private acknowledge(value: boolean, headers: StompHeaders): void {
+    private async doAcknowledge(value: boolean, headers: StompHeaders) {
         const ack: Acknowledge = {
             value,
             messageId: headers.id || headers.messageId
@@ -217,21 +255,32 @@ class BrokerClientCommandListener implements StompClientCommandListener {
         if (headers.subscription) {
             ack.subscription = headers.subscription;
         }
-        const callback = (err?: StompError) => this.receiptCallback(headers, err);
-        this.broker.listener.acknowledging(this.sessionId, ack, callback);
+        try {
+            await this.broker.listener.acknowledging(this.sessionId, ack);
+            await this.receiptCallback(headers);
+        } catch (err) {
+            await this.receiptCallback(headers, err);
+        }
     }
 
-    disconnect(headers: StompHeaders): void {
-        //TODO: handle receipt
+    private async doBegin(headers: StompHeaders) {
+        try {
+            const id = headers.transaction;
+            if (this.transactions.has(id)) {
+                throw new StompError(`Transaction with ID ${id} already started.`);
+            }
+            this.transactions.add(id);
+            try {
+                await this.broker.listener.beginningTransaction(this.sessionId, id);
+            } catch (err) {
+                this.transactions.delete(id);
+                throw err;
+            }
+            await this.receiptCallback(headers);
+        } catch (err) {
+            await this.receiptCallback(headers, err);
+        }
     }
-
-    onProtocolError(error: StompError): void {
-    }
-
-    onEnd(): void {
-    }
-
-
 
 }
 
@@ -242,7 +291,7 @@ export interface Acknowledge {
     transaction?: string;
 }
 
-interface Subscription {
+export interface Subscription {
     id: string,
     destination: string,
     ack: string
@@ -254,6 +303,34 @@ interface BrokerSession<S extends GenericSocket> {
     stompSession: StompServerSessionLayer;
     // bindings: Map<string, SubscriptionBinding>; //this is an implementation-specific detail. maybe we need generic here?
 }
+
+// currently unused.
+
+// interface Transaction<T> {
+//     id: string;
+//     data: T;
+// }
+//
+// class SessionTransactionRegistry {
+//
+//     private readonly map = new Map<string, Transaction<any>>();
+//
+//     public add<T>(transaction: Transaction<T>) {
+//         if (this.map.has(transaction.id)) {
+//             throw new StompError(`Transaction ID ${transaction.id} already found.`);
+//         }
+//         this.map.set(transaction.id, transaction);
+//     }
+//
+//     public get<T>(transactionId: string) {
+//         return this.map.get(transactionId);
+//     }
+//
+//     public remove(transactionId: string) {
+//         return this.map.delete(transactionId);
+//     }
+//
+// }
 
 
 class BrokerSubscriptionsRegistry {
@@ -279,9 +356,40 @@ class BrokerSubscriptionsRegistry {
         return reg && reg.get(subscriptionId);
     }
 
-    public remove(sessionId: string, subscriptionId: string) {
+    public remove(sessionId: string): boolean;
+    public remove(sessionId: string, subscriptionId: string): boolean;
+    public remove(sessionId: string, subscriptionId?: string): boolean {
         const reg = this.bySessionId.get(sessionId);
-        return reg && reg.remove(subscriptionId);
+        if (reg) {
+            if (subscriptionId) { // remove just a single subscription for the given session
+                this.removeFromDestinationMap(reg, subscriptionId);
+                return reg.remove(subscriptionId);
+            }
+            // remove all subscriptions for the given session
+            for (let dest of reg.destinations) {
+                const arr = this.byDestination.get(dest)!;
+                let i = arr.findIndex(s => s === reg);
+                while (i >= 0) {
+                    arr.splice(i, 1);
+                    i = arr.findIndex(s => s === reg);
+                }
+            }
+            this.bySessionId.delete(sessionId);
+        }
+        return !!reg;
+    }
+
+    private removeFromDestinationMap(reg: SessionSubscriptionsRegistry, subscriptionId: string) {
+        const subscription = reg.get(subscriptionId);
+        if (subscription) {
+            const destination = subscription.destination;
+            let i = 0; // counts how many subscription of this session to the given destination
+            reg.forDestination(destination, (_subscription) => (i++ , true));
+            if (i === 1) {  // last subscription of this session for the given destination
+                const arr = this.byDestination.get(destination)!;
+                arr.splice(arr.findIndex(s => s === reg), 1);
+            }
+        }
     }
 
     public forSessionDestination(sessionId: string, destination: string, callback: (subscription: Subscription) => boolean | void): void {
@@ -303,6 +411,8 @@ class BrokerSubscriptionsRegistry {
 }
 
 
+
+
 class SessionSubscriptionsRegistry {
 
     private readonly byId = new Map<string, Subscription>();
@@ -310,9 +420,13 @@ class SessionSubscriptionsRegistry {
 
     constructor(readonly sessionId: string) { }
 
+    public get destinations() {
+        return this.byDestination.keys();
+    }
+
     public add(subscription: Subscription) {
         if (this.byId.has(subscription.id)) {
-            throw new Error(`Subscription ID ${subscription.id} already found for session ${this.sessionId}.`);
+            throw new StompError(`Subscription ID ${subscription.id} already found for session ${this.sessionId}.`);
         }
         this.byId.set(subscription.id, subscription);
         let arr = this.byDestination.get(subscription.destination);
@@ -344,6 +458,8 @@ class SessionSubscriptionsRegistry {
         }
         return true;
     }
+
+
 
     // TODO: filter method
 
