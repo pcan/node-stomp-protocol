@@ -2,16 +2,16 @@ import { StompFrameLayer } from "./frame";
 import { StompFrame, StompError } from "./model";
 import { clearInterval } from "timers";
 
-export interface IHeartbeatOptions {
+export interface HeartbeatOptions {
     outgoingPeriod: number;
     incomingPeriod: number;
 }
 
 export class Heartbeat {
 
-    public static defaultOptions: IHeartbeatOptions = { outgoingPeriod: 0, incomingPeriod: 0 };
+    public static defaultOptions: HeartbeatOptions = { outgoingPeriod: 0, incomingPeriod: 0 };
 
-    options: IHeartbeatOptions;
+    options: HeartbeatOptions;
     optionsString: string;
 
     incomingPeriod?: number;
@@ -24,7 +24,7 @@ export class Heartbeat {
 
     constructor(
         private readonly frameLayer: StompFrameLayer,
-        options: IHeartbeatOptions = Heartbeat.defaultOptions) {
+        options: HeartbeatOptions = Heartbeat.defaultOptions) {
 
         this.options = options;
         this.optionsString = `${this.options.outgoingPeriod},${this.options.incomingPeriod}`;

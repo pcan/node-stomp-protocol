@@ -1,17 +1,16 @@
 import "mocha";
-import { assert, expect } from 'chai';
+import { expect } from 'chai';
 import * as WebSocket from 'ws';
 import { StompServerSessionLayer, StompClientSessionLayer } from '../src/session';
 import {
     StompClientCommandListener, StompServerCommandListener
 } from "../src/protocol";
-import { StompStreamLayer } from "../src/stream";
 import { setTimeout } from "timers";
-import { countdownLatch, noopFn } from "./helpers";
+import { noopFn } from "./helpers";
 import { createStompServerSession, StompConfig, createStompClientSession } from "../src";
 
 
-describe("HEART-BEATING", function() {
+describe("STOMP Heart beating", function() {
     this.timeout(15000);
 
     const heartbeatMsg = "\0";
@@ -27,14 +26,16 @@ describe("HEART-BEATING", function() {
     let clientListener: StompClientCommandListener;
 
     beforeEach((done) => {
-        const latch = countdownLatch(2, done);
 
         clientListener = {
             onProtocolError: (_err) => { },
             onEnd: noopFn
         } as StompClientCommandListener;
 
-        server = new WebSocket.Server({ port: 58999 }, latch);
+        server = new WebSocket.Server({ port: 58999 }, () => {
+            clientSocket = new WebSocket("ws://localhost:58999/ws");
+            clientSocket.on("open", done);
+        });
         server.on("connection", _socket => {
             socket = _socket;
         });
@@ -44,11 +45,6 @@ describe("HEART-BEATING", function() {
             onEnd: noopFn
         } as StompServerCommandListener;
 
-        clientSocket = new WebSocket("ws://localhost:58999/ws");
-        clientSocket.on("open", () => {
-            latch();
-        });
-
     });
 
     afterEach((done) => {
@@ -56,21 +52,21 @@ describe("HEART-BEATING", function() {
         server.close(done);
     });
 
-    it("should perform DUPLEX heart-beat every 500ms", (done) => {
+    it("should perform duplex heart-beat every 50ms", (done) => {
         let clientHeartbeatIncomingCount = 0;
         let serverHeartbeatIncomingCount = 0;
 
         const serverConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
         const clientConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 300,
-                incomingPeriod: 300
+                outgoingPeriod: 30,
+                incomingPeriod: 30
             }
         };
 
@@ -94,7 +90,7 @@ describe("HEART-BEATING", function() {
 
         setTimeout(() => {
             clientSession.disconnect();
-        }, 1600);
+        }, 180);
 
         serverSession = createStompServerSession(socket, clientListener, serverConfig);
         clientSession = createStompClientSession(clientSocket, serverListener, clientConfig);
@@ -143,7 +139,7 @@ describe("HEART-BEATING", function() {
 
         setTimeout(() => {
             clientSession.disconnect();
-        }, 1000);
+        }, 100);
 
         serverSession = createStompServerSession(socket, clientListener, serverConfig);
         clientSession = createStompClientSession(clientSocket, serverListener, clientConfig);
@@ -159,14 +155,14 @@ describe("HEART-BEATING", function() {
         const serverConfig: StompConfig = {
             heartbeat: {
                 outgoingPeriod: 0,
-                incomingPeriod: 500
+                incomingPeriod: 50
             }
         };
 
         const clientConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
@@ -190,7 +186,7 @@ describe("HEART-BEATING", function() {
 
         setTimeout(() => {
             clientSession.disconnect();
-        }, 1500);
+        }, 140);
 
         serverSession = createStompServerSession(socket, clientListener, serverConfig);
         clientSession = createStompClientSession(clientSocket, serverListener, clientConfig);
@@ -206,15 +202,15 @@ describe("HEART-BEATING", function() {
 
         const serverConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
         const clientConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
@@ -233,7 +229,7 @@ describe("HEART-BEATING", function() {
         serverListener.connected = (headers) => {
             setTimeout(() => {
                 serverSession.error({});
-            }, 2000);
+            }, 190);
         };
 
         clientListener.connect = () => serverSession.connected({});
@@ -263,15 +259,15 @@ describe("HEART-BEATING", function() {
 
         const serverConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
         const clientConfig: StompConfig = {
             heartbeat: {
-                outgoingPeriod: 500,
-                incomingPeriod: 500
+                outgoingPeriod: 50,
+                incomingPeriod: 50
             }
         };
 
@@ -290,7 +286,7 @@ describe("HEART-BEATING", function() {
         serverListener.connected = (headers) => {
             setTimeout(() => {
                 serverSession.frameLayer.heartbeat.releaseTimers();
-            }, 1000);
+            }, 20);
         };
 
         clientListener.connect = () => serverSession.connected({});
