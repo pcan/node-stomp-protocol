@@ -1,6 +1,7 @@
 import { StompFrame, StompEventEmitter, StompError, StompConfig } from "./model";
 import { StompStreamLayer } from "./stream";
 import { log } from './utils';
+import { Heartbeat } from "./heartbeat";
 
 enum StompFrameStatus {
     COMMAND = 0,
@@ -26,11 +27,13 @@ export class StompFrameLayer {
     private newlineCounter = 0;
     private connectTimeout?: NodeJS.Timer;
     public headerFilter = (_headerName: string) => true;
+    public heartbeat: Heartbeat;
 
-    constructor(private readonly stream: StompStreamLayer, options?: StompConfig) {
+    constructor(public readonly stream: StompStreamLayer, options?: StompConfig) {
         stream.emitter.on('data', (data: Buffer) => this.onData(data));
         stream.emitter.on('end', () => this.onEnd());
         this.init(options);
+        this.heartbeat = new Heartbeat(this, options && options.heartbeat);
     }
 
     private init(options?: StompConfig) {
@@ -68,6 +71,7 @@ export class StompFrameLayer {
         data += '\0';
         log.silly("StompFrameLayer: sending frame data %j", data);
         await this.stream.send(data);
+        this.heartbeat.resetupOutgoingTimer();
     }
 
     /**
@@ -253,7 +257,7 @@ export class StompFrameLayer {
      * Emits a new StompFrameError and sets the current status to ERROR
      * @param  {StompFrameError} error
      */
-    private error(error: StompError) {
+    public error(error: StompError) {
         log.debug("StompFrameLayer: stomp error %O", error);
         this.emitter.emit('error', error);
         this.status = StompFrameStatus.ERROR;

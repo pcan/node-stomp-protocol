@@ -146,8 +146,19 @@ export class StompServerSessionLayer extends StompSessionLayer<StompClientComman
     public async connected(headers: StompHeaders) {
         log.debug("StompServerSessionLayer: sending CONNECTED frame %j", headers);
         this.data.authenticated = true;
-        Object.assign(headers || {}, { version: this.protocol.version });
-        await this.sendFrame(new StompFrame('CONNECTED', headers));
+
+        const heartbeat = this.frameLayer.heartbeat &&
+            this.frameLayer.heartbeat.optionsString && {
+                "heart-beat": this.frameLayer.heartbeat.optionsString
+            };
+
+        const _headers = {
+            ...headers,
+            version: this.protocol.version,
+            ...heartbeat
+        };
+
+        await this.sendFrame(new StompFrame('CONNECTED', _headers));
     }
 
     public async message(headers: StompHeaders, body?: string) {
@@ -204,7 +215,17 @@ export class StompClientSessionLayer extends StompSessionLayer<StompServerComman
 
     public async connect(headers: StompHeaders): Promise<void> {
         log.debug("StompClientSessionLayer: sending CONNECT frame %j", headers);
-        headers = Object.assign({ 'accept-version': '1.0,1.1,1.2' }, headers);
+
+        const heartbeat = this.frameLayer.heartbeat &&
+            this.frameLayer.heartbeat.optionsString && {
+                "heart-beat": this.frameLayer.heartbeat.optionsString
+            };
+
+        headers = Object.assign({ 'accept-version': '1.0,1.1,1.2' },  {
+            ...headers,
+            ...heartbeat
+        });
+
         await this.sendFrame(new StompFrame('CONNECT', headers));
     }
 
