@@ -5,7 +5,7 @@ import {
 } from '../src/protocol'
 import { createStompClientSession, StompError } from '../src/index';
 import { countdownLatch, noopFn, noopAsyncFn, check } from './helpers';
-import { StompBrokerLayerImpl, StompBrokerListener, Subscription } from '../src/broker';
+import { StompBrokerLayerImpl, StompBrokerListener, Subscription, SessionSubscriptionsRegistry } from '../src/broker';
 import { createServer, Server, createConnection, Socket } from 'net';
 import { assert, expect } from 'chai';
 
@@ -331,6 +331,68 @@ describe('STOMP Broker Layer', () => {
         serverListener.message = (headers, body) =>
             check(() => assert.deepEqual({ headers, body }, message), done);
         clientSession.connect({});
+    });
+
+});
+
+
+describe('STOMP Session Subscription Registry', () => {
+
+    let reg: SessionSubscriptionsRegistry;
+
+    beforeEach((done) => {
+        reg = new SessionSubscriptionsRegistry('test');
+        done();
+    });
+
+    it(`should insert a new subscription`, (done) => {
+        const id = 'sub-1';
+        const sub = { id, destination: '/queue/abc', ack: 'auto' };
+        reg.add(sub);
+        check(() => assert.deepEqual(reg.get(id), sub), done);
+    });
+
+    it(`should throw an error when adding an already existing subscription`, (done) => {
+        const id = 'sub-1';
+        const sub = { id, destination: '/queue/abc', ack: 'auto' };
+        reg.add(sub);
+        check(() => assert.throws(() => reg.add(sub)), done);
+    });
+
+    it(`should remove a subscription`, (done) => {
+        const id = 'sub-1';
+        const sub = { id, destination: '/queue/abc', ack: 'auto' };
+        reg.add(sub);
+        reg.remove(sub.id);
+        check(() => assert.isUndefined(reg.get(id)), done);
+    });
+
+    it(`should not remove an invalid subscription`, (done) => {
+        const id = 'sub-1';
+        const sub = { id, destination: '/queue/abc', ack: 'auto' };
+        reg.add(sub);
+        const res = reg.remove('/queue/xyz');
+        check(() => assert.isFalse(res), done);
+    });
+
+    it(`should insert multiple subscriptions on same destination`, (done) => {
+        const id1 = 'sub-1';
+        const destination = '/queue/abc';
+        const sub1 = { id: id1, destination, ack: 'auto' };
+        const sub2 = { id: 'sub-2', destination, ack: 'auto' };
+        reg.add(sub1);
+        reg.add(sub2);
+        let arr: Subscription[] = [];
+        reg.forDestination(destination, s => (arr.push(s), true));
+        check(() => expect(arr).to.include.deep.members([sub1, sub2]), done);
+    });
+
+    it(`should ignore an invalid destination`, (done) => {
+        const id = 'sub-1';
+        const sub = { id, destination: '/queue/abc', ack: 'auto' };
+        reg.add(sub);
+        reg.forDestination('/queue/xyz', s => (done(new Error('Invalid destination found.')), true));
+        done();
     });
 
 });

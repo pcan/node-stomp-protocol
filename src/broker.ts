@@ -352,43 +352,7 @@ export interface Subscription {
     ack: string
 }
 
-
-interface BrokerSession<S extends GenericSocket> {
-    socket: S;
-    stompSession: StompServerSessionLayer;
-    // bindings: Map<string, SubscriptionBinding>; //this is an implementation-specific detail. maybe we need generic here?
-}
-
-// currently unused.
-
-// interface Transaction<T> {
-//     id: string;
-//     data: T;
-// }
-//
-// class SessionTransactionRegistry {
-//
-//     private readonly map = new Map<string, Transaction<any>>();
-//
-//     public add<T>(transaction: Transaction<T>) {
-//         if (this.map.has(transaction.id)) {
-//             throw new StompError(`Transaction ID ${transaction.id} already found.`);
-//         }
-//         this.map.set(transaction.id, transaction);
-//     }
-//
-//     public get<T>(transactionId: string) {
-//         return this.map.get(transactionId);
-//     }
-//
-//     public remove(transactionId: string) {
-//         return this.map.delete(transactionId);
-//     }
-//
-// }
-
-
-class BrokerSubscriptionsRegistry {
+export class BrokerSubscriptionsRegistry {
 
     private readonly bySessionId = new Map<string, SessionSubscriptionsRegistry>();
     private readonly byDestination = new Map<string, SessionSubscriptionsRegistry[]>();
@@ -467,9 +431,7 @@ class BrokerSubscriptionsRegistry {
 }
 
 
-
-
-class SessionSubscriptionsRegistry {
+export class SessionSubscriptionsRegistry {
 
     private readonly byId = new Map<string, Subscription>();
     private readonly byDestination = new Map<string, Subscription[]>();
@@ -514,8 +476,6 @@ class SessionSubscriptionsRegistry {
         }
         return true;
     }
-
-
 
     // TODO: filter method
 
