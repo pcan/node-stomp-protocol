@@ -52,7 +52,7 @@ describe("STOMP Heart beating", function() {
         server.close(done);
     });
 
-    it("should perform duplex heart-beat every 50ms", (done) => {
+    it("should perform duplex heart-beat every 50ms and realese timers", (done) => {
         let clientHeartbeatIncomingCount = 0;
         let serverHeartbeatIncomingCount = 0;
 
@@ -82,23 +82,28 @@ describe("STOMP Heart beating", function() {
             }
         });
 
-        serverListener.onEnd = () => {
-            expect(clientHeartbeatIncomingCount).eq(3);
-            expect(serverHeartbeatIncomingCount).eq(3);
+        serverListener.onEnd = () => setTimeout(() => {
+            expect(clientHeartbeatIncomingCount).lte(3);
+            expect(serverHeartbeatIncomingCount).lte(3);
+            expect(clientSession.frameLayer.heartbeat.outgoingTimer).eq(null);
+            expect(clientSession.frameLayer.heartbeat.incomingTimer).eq(null);
+            expect(serverSession.frameLayer.heartbeat.outgoingTimer).eq(null);
+            expect(serverSession.frameLayer.heartbeat.incomingTimer).eq(null);
             done();
-        };
+        }, 300);
 
         setTimeout(() => {
             clientSession.disconnect();
         }, 180);
 
+        clientListener.connect = () => serverSession.connected({});
+        clientListener.disconnect = () => serverSession.receipt({});
+
         serverSession = createStompServerSession(socket, clientListener, serverConfig);
         clientSession = createStompClientSession(clientSocket, serverListener, clientConfig);
 
-        clientListener.connect = () => serverSession.connected({});
         clientSession.connect({});
     });
-
 
 
     it("should not perform heartbeat", (done) => {

@@ -81,8 +81,10 @@ export class Heartbeat {
     }
 
     resetupOutgoingTimer() {
-        this.releaseTimer(this.outgoingTimer);
-        this.setupOutgoingTimer();
+        if (this.outgoingTimer) {
+            this.releaseTimer(this.outgoingTimer);
+            this.setupOutgoingTimer();
+        }
     }
 
     releaseTimer(timer: NodeJS.Timer | null) {

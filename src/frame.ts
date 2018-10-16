@@ -87,6 +87,9 @@ export class StompFrameLayer {
      * the standard [ command - headers - body ] structure of a frame.
      */
     private onData(data: Buffer) {
+        if (data.toString() === "\0") {
+            return;
+        }
         this.buffer = Buffer.concat([this.buffer, data]);
         if (this.buffer.length <= this.maxBufferSize) {
             do {
