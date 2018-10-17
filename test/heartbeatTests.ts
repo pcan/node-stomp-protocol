@@ -52,7 +52,7 @@ describe("STOMP Heart beating", function() {
         server.close(done);
     });
 
-    it("should perform duplex heart-beat every 50ms and realese timers", (done) => {
+    it("should perform duplex heart-beat every 50ms and release timers", (done) => {
         let clientHeartbeatIncomingCount = 0;
         let serverHeartbeatIncomingCount = 0;
 
@@ -90,7 +90,7 @@ describe("STOMP Heart beating", function() {
             expect(serverSession.frameLayer.heartbeat.outgoingTimer).eq(null);
             expect(serverSession.frameLayer.heartbeat.incomingTimer).eq(null);
             done();
-        }, 300);
+        }, 110);
 
         setTimeout(() => {
             clientSession.disconnect();

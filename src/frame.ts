@@ -87,7 +87,8 @@ export class StompFrameLayer {
      * the standard [ command - headers - body ] structure of a frame.
      */
     private onData(data: Buffer) {
-        if (data.toString() === "\0") {
+        if (data.length === 1 && data[0] === 0) {
+            // Just one byte incoming: it's a null-char for heart-beat. 
             return;
         }
         this.buffer = Buffer.concat([this.buffer, data]);
