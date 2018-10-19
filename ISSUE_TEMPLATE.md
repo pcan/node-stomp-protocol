@@ -14,7 +14,7 @@
 
 ### Versions
 
-Specify node-stomp-protocol version here and please include the OS and what version of the OS you're running.
+Specify stomp-protocol version here and please include the OS and what version of the OS you're running.
 
 ### Additional Information
 

@@ -2,6 +2,8 @@
 
 An implementation of the [STOMP Protocol](https://stomp.github.io/) for NodeJS, both client-side & server-side. It does not implement a fully functional broker, but it's intended as an API for building complex asynchronous applications based on the STOMP protocol.
 
+**Note: the npm package has been renamed to stomp-protocol in order to be compliant with naming conventions.**
+
 ## Ready for TypeScript
 
 I developed this module using Typescript and the npm package is already provided with `d.ts` typings.
@@ -11,13 +13,13 @@ I developed this module using Typescript and the npm package is already provided
 Run npm to install the package:
 
 ```shell
-npm install node-stomp-protocol --save
+npm install stomp-protocol --save
 ```
 
 Import the module using the standard syntax:
 
 ```typescript
-import * as stomp from 'node-stomp-protocol';
+import * as stomp from 'stomp-protocol';
 ```
 
 ### Client example
@@ -25,7 +27,7 @@ import * as stomp from 'node-stomp-protocol';
 The following example shows how to connect to a STOMP server using this library. We use `net.Socket` here, but the library is ready for `WebSocket`s, too.
 
 ```TypeScript
-import { StompHeaders, StompError, StompServerCommandListener, createStompClientSession } from 'node-stomp-protocol';
+import { StompHeaders, StompError, StompServerCommandListener, createStompClientSession } from 'stomp-protocol';
 import { Socket, createConnection } from 'net';
 
 const listener: StompServerCommandListener = { // 1) define a listener for server-sent frames.
@@ -74,7 +76,7 @@ createStompClientSession(socket, MyServerListener);
 ### Server example
 
 ```TypeScript
-import { StompHeaders, StompError, StompClientCommandListener, createStompServerSession } from 'node-stomp-protocol';
+import { StompHeaders, StompError, StompClientCommandListener, createStompServerSession } from 'stomp-protocol';
 import { Socket, createServer } from 'net';
 
 function testServer(socket: Socket) { // 1) create a listener for incoming raw TCP connections.

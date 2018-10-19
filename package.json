@@ -1,5 +1,5 @@
 {
-  "name": "node-stomp-protocol",
+  "name": "stomp-protocol",
   "version": "0.4.4",
   "author": "Pierantonio Cangianiello",
   "homepage": "https://github.com/pcan/node-stomp-protocol",
