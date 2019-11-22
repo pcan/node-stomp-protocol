@@ -45,7 +45,7 @@ export class StompFrameLayer {
             if (options.newlineFloodingResetTime && options.newlineFloodingResetTime > 0) {
                 this.newlineFloodingResetTime = options.newlineFloodingResetTime;
             }
-            if (options.maxBufferSize) {
+            if (options.maxBufferSize && options.maxBufferSize > 0) {
                 this.maxBufferSize = options.maxBufferSize;
             }
         }
