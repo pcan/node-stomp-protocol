@@ -8,6 +8,7 @@ export interface StompConfig {
     newlineFloodingResetTime?: number;
     headersFilter?: (headerName: string) => boolean;
     heartbeat?: HeartbeatOptions;
+    maxBufferSize?: number;
 }
 
 export class StompSessionData {

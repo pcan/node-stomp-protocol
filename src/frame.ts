@@ -45,6 +45,9 @@ export class StompFrameLayer {
             if (options.newlineFloodingResetTime && options.newlineFloodingResetTime > 0) {
                 this.newlineFloodingResetTime = options.newlineFloodingResetTime;
             }
+            if (options.maxBufferSize) {
+                this.maxBufferSize = options.maxBufferSize;
+            }
         }
     }
 
@@ -88,7 +91,7 @@ export class StompFrameLayer {
      */
     private onData(data: Buffer) {
         if (data.length === 1 && data[0] === 0) {
-            // Just one byte incoming: it's a null-char for heart-beat. 
+            // Just one byte incoming: it's a null-char for heart-beat.
             return;
         }
         this.buffer = Buffer.concat([this.buffer, data]);
