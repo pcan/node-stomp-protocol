@@ -43,7 +43,7 @@ class StompSocketStreamLayer implements StompStreamLayer {
         log.debug("StompSocketStreamLayer: new connection %s", socket.remoteAddress);
         this.socket.on('data', (data) => this.onSocketData(data));
         this.socket.on('error', (err) => this.onSocketEnd(err));
-        this.socket.on('end', () => this.onSocketEnd());
+        this.socket.on('close', () => this.onSocketEnd());
     }
 
     private onSocketData(data: Buffer) {
