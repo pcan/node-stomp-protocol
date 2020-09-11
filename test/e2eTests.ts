@@ -5,7 +5,7 @@ import {
 } from '../src/protocol'
 import { createStompServerSession, createStompClientSession } from '../src/index';
 import { countdownLatch, noopFn, noopAsyncFn } from './helpers';
-import { createServer, Server, createConnection, Socket } from 'net';
+import { createServer, Server, createConnection, Socket, AddressInfo } from 'net';
 import * as WebSocket from 'ws';
 
 describe('STOMP Client & Server over Plain Socket', () => {
@@ -30,7 +30,7 @@ describe('STOMP Client & Server over Plain Socket', () => {
         });
         server.listen();
         server.on('listening', () => {
-            const port = server.address().port;
+            const port = (server.address() as AddressInfo).port;
             clientSocket = createConnection(port, 'localhost', done);
             clientSession = createStompClientSession(clientSocket, serverListener);
         });
