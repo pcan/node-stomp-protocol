@@ -58,7 +58,7 @@
     "ts-node": "^3.2.0",
     "typescript": "^3",
     "@types/ws": "^5",
-    "ws": "^5"
+    "ws": "^7"
   },
   "dependencies": {}
 }
